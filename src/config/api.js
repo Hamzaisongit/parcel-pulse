@@ -2,7 +2,7 @@
 const API_CONFIG = {
     // Remove baseUrl since we're using proxy
     endpoints: {
-        // Update endpoints to use proxy paths
+        // Get all sales orders
         salesOrders: '/api/v2/document/Sales Order'
     },
     

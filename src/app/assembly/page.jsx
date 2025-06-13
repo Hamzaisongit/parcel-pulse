@@ -42,29 +42,30 @@ export default function AssemblyPage() {
 
     // Show loading state
     if (loading) {
-        return <div className="loading">Loading sales orders...</div>;
+        return <div className="flex items-center justify-center min-h-screen text-lg text-gray-600">Loading sales orders...</div>;
     }
 
     // Show error state
     if (error) {
-        return <div className="error">{error}</div>;
+        return <div className="flex items-center justify-center min-h-screen text-red-600 bg-red-50 p-4 rounded-lg">{error}</div>;
     }
 
     return (
-        <div>
-            <div className="header">
-                <h1>Assembly Section</h1>
-                <p>Select a Sales Order to view its items</p>
+        <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-3xl mx-auto text-center mb-8">
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Assembly Section</h1>
+                <p className="text-lg text-gray-600">Select a Sales Order to view its items</p>
             </div>
 
-            <div className="select-container">
+            <div className="max-w-xl mx-auto">
                 <select 
                     onChange={handleSalesOrderChange}
                     defaultValue=""
+                    className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 >
-                    <option value="" disabled>Select a Sales Order</option>
+                    <option value="" disabled className="text-gray-500">Select a Sales Order</option>
                     {salesOrders.map(order => (
-                        <option key={order.name} value={order.name}>
+                        <option key={order.name} value={order.name} className="py-2">
                             {order.name} - {order.customer} ({order.transaction_date})
                         </option>
                     ))}
@@ -72,4 +73,4 @@ export default function AssemblyPage() {
             </div>
         </div>
     );
-} 
+}

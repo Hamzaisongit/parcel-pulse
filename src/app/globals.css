@@ -1,0 +1,13 @@
+/* globals.css */
+
+/* Core Tailwind import (includes preflight & utilities) */
+@import "tailwindcss";
+
+/* Add custom theme variables if needed */
+@theme {
+  /* Example: */
+  --font-size-lg: 1.125rem;
+}
+
+/* Optional: add your own resets or base styles here */
+/* e.g.: @layer base { h1 { @apply text-3xl font-bold; } } */
