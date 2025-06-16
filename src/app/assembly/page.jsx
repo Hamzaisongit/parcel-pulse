@@ -12,13 +12,13 @@ export default function AssemblyPage() {
     const router = useRouter();
 
     // Your ERPNext API token
-    const token = '708ce20d2f35906:f9a7dae3b071cc1';
+    // const token = '708ce20d2f35906:f9a7dae3b071cc1';
 
     // Fetch sales orders when component mounts
     useEffect(() => {
         async function fetchSalesOrders() {
             try {
-                const orders = await apiService.getSalesOrders(token);
+                const orders = await apiService.getSalesOrders();
                 setSalesOrders(orders);
                 setLoading(false);
             } catch (err) {

@@ -7,10 +7,10 @@ const api = axios.create();
 // API service functions
 const apiService = {
     // Get all sales orders
-    async getSalesOrders(token) {
+    async getSalesOrders() {
         try {
             const response = await api.get(API_CONFIG.endpoints.salesOrders, {
-                headers: API_CONFIG.getHeaders(token)
+                withCredentials: true
             });
             return response.data.data;
         } catch (error) {
@@ -20,12 +20,12 @@ const apiService = {
     },
 
     // Get specific sales order with its items
-    async getSalesOrder(token, salesOrderName) {
+    async getSalesOrder(salesOrderName) {
         try {
             const response = await api.get(
                 `${API_CONFIG.endpoints.salesOrders}/${salesOrderName}`,
                 {
-                    headers: API_CONFIG.getHeaders(token)
+                    withCredentials: true
                 }
             );
             // Return the sales order document which includes the items array
@@ -37,7 +37,7 @@ const apiService = {
     },
 
     // Update sales order item assembly quantity
-    async updateAssemblyQuantity(token, salesOrder, itemName, assembledQuantity) {
+    async updateAssemblyQuantity(salesOrder, itemName, assembledQuantity) {
         try {
             const updatedItems = salesOrder.items.map((i)=>{
                 if(i.name == itemName){
@@ -56,7 +56,7 @@ const apiService = {
                     items: updatedItems
                 },
                 {
-                    headers: API_CONFIG.getHeaders(token)
+                    withCredentials: true
                 }
             );
             return response.data;

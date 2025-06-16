@@ -7,10 +7,10 @@ const API_CONFIG = {
     },
     
     // Function to get headers with authentication token
-    getHeaders: (token) => ({
-        'Authorization': `token ${token}`,
-        'Content-Type': 'application/json'
-    })
+    // getHeaders: (token) => ({
+    //     'Authorization': `token ${token}`,
+    //     'Content-Type': 'application/json'
+    // })
 };
 
 export default API_CONFIG; 

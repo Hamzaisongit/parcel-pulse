@@ -3,8 +3,8 @@ const nextConfig = {
     async rewrites() {
         return [
             {
-                source: '/api/:path*',
-                destination: 'https://mycompany404.erpnext.com/api/:path*'
+                source: '/api/v2/:path*',
+                destination: 'https://mycompany404.erpnext.com/api/v2/:path*'
             }
         ]
     }

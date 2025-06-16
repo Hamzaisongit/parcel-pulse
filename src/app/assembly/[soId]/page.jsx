@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef, useContext } from 'react';
 import { useParams } from 'next/navigation';
 import apiService from '../../../services/api';
-import { getVideoDevices, reader, startScanning, stopScanning } from '../../../services/barcodeReader';
+import { getselectedVideoDevices, getVideoDevices, reader, startScanning, stopScanning } from '../../../services/barcodeReader';
 import { GlobalContext } from '../../../Context/globalContext';
 import useBarcode from '../../../Stores/barcodeStore';
+import IntermidScanningController from '../../../Components/IntermidScanningController';
 
 export default function SalesOrderDetailPage() {
     // State variables
@@ -13,9 +14,10 @@ export default function SalesOrderDetailPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [barcodeInput, setBarcodeInput] = useState(''); // This is the barcode input
+    const [selectedVideoDevice, setSelectedVideoDevice] = useState('')
+    const [videoDevices, setVideoDevices] = useState([])
     // const [currentProcessingInfo, setcurrentProcessingInfo] = useState(''); // This is the barcode that is currently being processed
-    const [scanning, setScanning] = useState(false);
-    const currentProcessingInfo = useRef({});
+   
     const barcode = useBarcode((state)=> state.barcode)
     const setBarcode = useBarcode((state)=> state.setBarcode)
 
@@ -23,10 +25,10 @@ export default function SalesOrderDetailPage() {
     const params = useParams();
     const salesOrderId = params.soId;
 
-    const {setLoadingController} = useContext(GlobalContext)
+    const {setLoadingController, currentProcessingInfo, setScanningController, scanning, setScanning} = useContext(GlobalContext)
 
     // Your ERPNext API token
-    const token = '708ce20d2f35906:f9a7dae3b071cc1';
+    // const token = '708ce20d2f35906:f9a7dae3b071cc1';
 
     // Fetch sales order when component mounts
     useEffect(() => {
@@ -38,6 +40,12 @@ export default function SalesOrderDetailPage() {
         handleUniqueBarcodeScans(barcode)
     }, [barcode])
 
+    useEffect(()=>{
+        getVideoDevices().then(devices => {
+            console.log(devices)
+            setVideoDevices(devices)}
+        ); 
+    },[])
     // useEffect(() => {
     //     document.addEventListener('barcode', handleUniqueBarcodeScans);
     //     return () => document.removeEventListener('barcode', handleUniqueBarcodeScans);
@@ -45,7 +53,7 @@ export default function SalesOrderDetailPage() {
 
     async function fetchSalesOrder() {
         try {
-            const order = await apiService.getSalesOrder(token, salesOrderId);
+            const order = await apiService.getSalesOrder(salesOrderId);
             setSalesOrder(order);
             setLoading(false);
         } catch (err) {
@@ -57,7 +65,7 @@ export default function SalesOrderDetailPage() {
 
     // Handle barcode input
     function handleBarcodeChange(event) {
-        setBarcodeInput(event.target.value);
+        setBarcodeInput((event.target.value).trim());
     }
 
     // Handle barcode submission
@@ -75,7 +83,7 @@ export default function SalesOrderDetailPage() {
             );
 
             if (matchingItems.length === 0) {
-                alert('No matching item found for this barcode!');
+                setScanningController({show:true, text: `No matching Item found for this item!`})
                 return;
             }
 
@@ -85,7 +93,7 @@ export default function SalesOrderDetailPage() {
             );
 
             if (allFullyAssembled) {
-                alert('All items with this barcode are fully assembled!');
+                setScanningController({show:true, text: `All items with this barcode are already assembled!`})
                 return;
             }
 
@@ -102,7 +110,6 @@ export default function SalesOrderDetailPage() {
                 
                 // Update the item
                 await apiService.updateAssemblyQuantity(
-                    token,
                     salesOrder,
                     itemToAssemble.name,
                     newAssembledQuantity
@@ -125,32 +132,36 @@ export default function SalesOrderDetailPage() {
                     return {...p, items: newItems};
                 })
                 // Show success message
-                alert(`Successfully assembled item: ${itemToAssemble.item_name}`);
+                setScanningController({show:true, text: `Successfully assembled ${itemToAssemble.item_code}`})
             }
 
-            // Clear barcode input
-            setBarcode('');
+            // // Clear barcode
+            // setBarcode('');
             
+
         } catch (err) {
             console.error('Error processing barcode:', err);
-            alert('Error processing barcode. Please try again.');
+            setScanningController({show:true, text: `Failed to Process`})
         } finally {
-            currentProcessingInfo.current.status = 'idle'
+
+            // currentProcessingInfo.current.status = 'idle'
             setLoadingController({show:false, text:'Loading'})
-            setBarcode('')
+            // setBarcode('')
         }
     }
 
     // Toggle scanning mode
     const toggleScanning = () => {
         if(scanning){
+            currentProcessingInfo.current.status = 'idle'
             stopScanning();
         }else{
             //reader.start();
-            getVideoDevices().then(devices => {
-                startScanning('videoElement', devices[0].deviceId);
-            }); 
-            
+            if(!selectedVideoDevice){
+                startScanning('videoElement', videoDevices[0].deviceId);
+            }else{
+                startScanning('videoElement', selectedVideoDevice);
+            }
         }
         setScanning(!scanning);
         setBarcode('');
@@ -213,9 +224,25 @@ export default function SalesOrderDetailPage() {
                             >
                                 {scanning ? 'Stop Scanning' : 'Start Scanning'}
                             </button>
+                            {!scanning && (
+                                <select 
+                                    id='videoSelect'
+                                    onChange={(e)=>{
+                                       setSelectedVideoDevice(e.target.value)
+                                    }}
+                                    className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                >
+                                    <option value={""}>Selected Video-Default</option>
+                                    {videoDevices.map((device)=>{
+                                        return <option key={device.deviceId} value={device.deviceId}>
+                                            {device.label}
+                                        </option>
+                                    })}
+                                </select>
+                            )}
                             {scanning && (
                                 <button 
-                                    onClick={handleBarcodeSubmit}
+                                    onClick={()=>{handleBarcodeSubmit(barcodeInput)}}
                                     className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
                                 >
                                     Process
@@ -252,6 +279,7 @@ export default function SalesOrderDetailPage() {
                     </tbody>
                 </table>
             </div>
+            <IntermidScanningController></IntermidScanningController>
         </div>
     );
 } 
