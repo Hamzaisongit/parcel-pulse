@@ -1,15 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import apiService from '../../services/api';
+import { GlobalContext } from '../../Context/globalContext';
 
 export default function AssemblyPage() {
     // State variables
     const [salesOrders, setSalesOrders] = useState([]);
-    const [loading, setLoading] = useState(true);
+    // const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const router = useRouter();
+
+    const { setLoadingController } = useContext(GlobalContext)
 
     // Your ERPNext API token
     // const token = '708ce20d2f35906:f9a7dae3b071cc1';
@@ -18,12 +21,13 @@ export default function AssemblyPage() {
     useEffect(() => {
         async function fetchSalesOrders() {
             try {
+                setLoadingController({ show: true, text: 'Loading Sales Orders..' })
                 const orders = await apiService.getSalesOrders();
                 setSalesOrders(orders);
-                setLoading(false);
+                setLoadingController({ show: false, text: 'Loading Sales Orders..' })
             } catch (err) {
                 setError('Failed to fetch sales orders. Please try again.');
-                setLoading(false);
+                setLoadingController({ show: false, text: 'Loading Sales Orders..' })
                 console.error('Error:', err);
             }
         }
@@ -41,9 +45,9 @@ export default function AssemblyPage() {
     }
 
     // Show loading state
-    if (loading) {
-        return <div className="flex items-center justify-center min-h-screen text-lg text-gray-600">Loading sales orders...</div>;
-    }
+    // if (loading) {
+    //     return <div className="flex items-center justify-center min-h-screen text-lg text-gray-600">Loading sales orders...</div>;
+    // }
 
     // Show error state
     if (error) {
@@ -51,26 +55,31 @@ export default function AssemblyPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-3xl mx-auto text-center mb-8">
+        <div className="min-h-[100dvh] bg-gray-50 px-4 sm:px-6 lg:px-8 flex flex-col">
+            {/* Header */}
+            <div className="max-w-3xl mx-auto text-center pt-8 pb-4">
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">Assembly Section</h1>
                 <p className="text-lg text-gray-600">Select a Sales Order to view its items</p>
             </div>
 
-            <div className="max-w-xl mx-auto">
-                <select 
-                    onChange={handleSalesOrderChange}
-                    defaultValue=""
-                    className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-                >
-                    <option value="" disabled className="text-gray-500">Select a Sales Order</option>
-                    {salesOrders.map(order => (
-                        <option key={order.name} value={order.name} className="py-2">
-                            {order.name} - {order.customer} ({order.transaction_date})
-                        </option>
-                    ))}
-                </select>
+            {/* Spacer to push select into center */}
+            <div className="py-5 flex-grow flex flex-col items-center">
+                
+                    <select
+                        onChange={handleSalesOrderChange}
+                        defaultValue=""
+                        className="block h-13 w-xs px-4 py-3 mt-5 text-xl border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                    >
+                        <option value="" disabled className="text-gray-500">Select a Sales Order</option>
+                        {salesOrders.map(order => (
+                            <option key={order.name} value={order.name} className="py-2">
+                                {order.name}
+                            </option>
+                        ))}
+                    </select>
+
             </div>
         </div>
+
     );
 }

@@ -15,6 +15,7 @@ let scanning = false;
  */
 export const getVideoDevices = async () => {
     try {
+        await navigator.mediaDevices.getUserMedia({video:true})
         const devices = await navigator.mediaDevices.enumerateDevices();
         return devices.filter(device => device.kind === 'videoinput');
     } catch (error) {
@@ -29,7 +30,7 @@ export const getVideoDevices = async () => {
  * @param {string} [deviceId] - Optional device ID of the camera to use
  * @returns {Promise<{stopScanning: Function}>} Object containing function to stop scanning
  */
-export const startScanning = async (videoElementId, deviceId = null, uniqueBarcodeHandler) => {
+export const startScanning = async (videoElementId, deviceId = null) => {
     if (scanning) {
         throw new Error('Scanning is already in progress');
     }

@@ -2,6 +2,7 @@ import { useContext } from "react"
 import { GlobalContext } from "../Context/globalContext"
 import { stopScanning } from "../services/barcodeReader";
 import useBarcode from "../Stores/barcodeStore";
+import { Ban, CircleCheck, OctagonAlert, } from "lucide-react";
 
 export default function IntermidScanningController() {
   
@@ -12,10 +13,14 @@ export default function IntermidScanningController() {
     if(!scanningController.show) return;
 
     return (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
-            <div className="bg-white rounded-lg shadow-lg p-4 border border-gray-200 min-w-[300px]">
-                <div className="flex flex-col items-center gap-3">
-                    <p className="text-gray-700 font-medium">{scanningController.text}</p>
+        <div className="fixed inset-0 z-50 flex flex-col">
+            <div className={`flex-grow flex flex-col gap-5 items-center justify-center ${scanningController.status == 'success' ? 'bg-green-400' : (scanningController.status == 'alert' ? 'bg-green-400' : 'bg-red-400')} rounded-lg shadow-lg p-4 border border-gray-200 min-w-[300px]`}>
+                
+                    {scanningController.status == 'success' && <span><CircleCheck size={50} stroke="white" strokeWidth={2}></CircleCheck></span>}
+                    {scanningController.status == 'failure' && <span><Ban size={50} stroke="white" strokeWidth={2}></Ban></span>}
+                    {scanningController.status == 'alert' && <span><OctagonAlert size={50} stroke="white" strokeWidth={2}></OctagonAlert></span>}
+
+                    <p className="text-white text-center text-2xl font-bold">{scanningController.text}</p>
                     <div className="flex gap-3">
                         <button
                             onClick={() => {
@@ -23,7 +28,7 @@ export default function IntermidScanningController() {
                                 setBarcode('')
                                 setScanningController({show:false})
                             }}
-                            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                            className="px-3 py-2 text-xl font-bold bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
                         >
                             Continue Scanning
                         </button>
@@ -35,11 +40,11 @@ export default function IntermidScanningController() {
                                 setScanning(false)
                                 stopScanning()
                             }}
-                            className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+                            className="px-3 py-2 text-xl font-bold bg-gray-600 text-white rounded-md hover:bg-gray-500 transition-colors"
                         >
                             Stop Scanning
                         </button>
-                    </div>
+                    
                 </div>
             </div>
         </div>

@@ -50,8 +50,8 @@ export default function LoginPage() {
         //   console.log(cookie)
         //   document.cookie = cookie;
         // }
-        alert('done')
-        // router.push('/home');
+        // alert('done')
+        router.push('/');
       } else {
         setError(data.message || 'Login failed. Please check your credentials.');
       }

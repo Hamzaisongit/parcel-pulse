@@ -12,9 +12,9 @@ const Loading = () => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
             <div className="absolute inset-0 bg-black/40"></div>
-            <div className="relative bg-white p-4 rounded shadow-md">
-                <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-                <p className="text-sm">{loadingController.text}</p>
+            <div className="relative flex flex-col items-center justify-center gap-3 bg-white px-4 py-5 rounded shadow-md">
+                <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                <p className="text-xl text-center">{loadingController.text}</p>
             </div>
         </div>
     );
