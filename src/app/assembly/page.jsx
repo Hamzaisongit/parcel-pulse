@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useContext } from 'react';
 import { useRouter } from 'next/navigation';
-import apiService from '../../services/api';
 import { GlobalContext } from '../../Context/globalContext';
 
 export default function AssemblyPage() {
@@ -22,8 +21,18 @@ export default function AssemblyPage() {
         async function fetchSalesOrders() {
             try {
                 setLoadingController({ show: true, text: 'Loading Sales Orders..' })
-                const orders = await apiService.getSalesOrders();
-                setSalesOrders(orders);
+                const response = await fetch('/api/sales-orders', {
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                });
+                console.log(response)
+                if (!response.ok) {
+                    throw new Error('Failed to fetch sales orders');
+                }
+                const data = await response.json();
+                setSalesOrders(data.data);
                 setLoadingController({ show: false, text: 'Loading Sales Orders..' })
             } catch (err) {
                 setError('Failed to fetch sales orders. Please try again.');

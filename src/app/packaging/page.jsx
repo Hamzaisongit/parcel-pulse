@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import apiService from '../../services/api';
 
 export default function AssemblyPage() {
     // State variables
@@ -11,15 +10,21 @@ export default function AssemblyPage() {
     const [error, setError] = useState(null);
     const router = useRouter();
 
-    // Your ERPNext API token
-    const token = '708ce20d2f35906:f9a7dae3b071cc1';
-
     // Fetch sales orders when component mounts
     useEffect(() => {
         async function fetchSalesOrders() {
             try {
-                const orders = await apiService.getSalesOrders(token);
-                setSalesOrders(orders);
+                const response = await fetch('/api/sales-orders', {
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to fetch sales orders');
+                }
+                const data = await response.json();
+                setSalesOrders(data.data);
                 setLoading(false);
             } catch (err) {
                 setError('Failed to fetch sales orders. Please try again.');

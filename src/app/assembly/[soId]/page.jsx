@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useContext } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import apiService from '../../../services/api';
 import { getselectedVideoDevices, getVideoDevices, reader, startScanning, stopScanning } from '../../../services/barcodeReader';
 import { GlobalContext } from '../../../Context/globalContext';
 import useBarcode from '../../../Stores/barcodeStore';
@@ -53,8 +52,17 @@ export default function SalesOrderDetailPage() {
     async function fetchSalesOrder() {
         try {
             setLoadingController({ show: true, text: 'Loading Sales Order..' })
-            const order = await apiService.getSalesOrder(salesOrderId);
-            setSalesOrder(order);
+            const response = await fetch(`/api/sales-orders/${salesOrderId}`, {
+                credentials: 'include',
+                headers: {
+                    'Accept': 'application/json',
+                },
+            });
+            if (!response.ok) {
+                throw new Error('Failed to fetch sales order');
+            }
+            const data = await response.json();
+            setSalesOrder(data.data);
         } catch (err) {
             setError('Failed to fetch sales order. Please try again.');
             console.error('Error:', err);
@@ -108,11 +116,32 @@ export default function SalesOrderDetailPage() {
                 const newAssembledQuantity = (itemToAssemble.custom_quantity_assembled || 0) + 1;
 
                 // Update the item
-                await apiService.updateAssemblyQuantity(
-                    salesOrder,
-                    itemToAssemble.name,
-                    newAssembledQuantity
-                );
+                const updatedItems = salesOrder.items.map((i)=>{
+                    if(i.name == itemToAssemble.name){
+                        return {
+                            ...i,
+                            custom_quantity_assembled: newAssembledQuantity
+                        }
+                    }
+                    
+                    return i;
+                })
+
+                const updateResponse = await fetch(`/api/sales-orders/${salesOrder.name}`, {
+                    method: 'PUT',
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        items: updatedItems
+                    })
+                });
+
+                if (!updateResponse.ok) {
+                    throw new Error('Failed to update assembly quantity');
+                }
 
                 // Refresh the sales order
                 // await fetchSalesOrder();

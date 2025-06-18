@@ -1,13 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    async rewrites() {
-        return [
-            {
-                source: '/api/v2/:path*',
-                destination: 'https://mycompany404.erpnext.com/api/v2/:path*'
-            }
-        ]
-    }
+    // Removed rewrites to fix 403 error - API routes now call external ERP directly
 }
 
 module.exports = nextConfig
