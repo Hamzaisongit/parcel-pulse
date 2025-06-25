@@ -11,3 +11,10 @@
 
 /* Optional: add your own resets or base styles here */
 /* e.g.: @layer base { h1 { @apply text-3xl font-bold; } } */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  height: 100%;
+}

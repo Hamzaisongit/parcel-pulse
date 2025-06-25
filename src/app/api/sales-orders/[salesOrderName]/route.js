@@ -32,20 +32,24 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   try {
-    const { salesOrderName } = params;
+    const { salesOrderName } = await params;
     const body = await request.json();
-    
+    console.log(salesOrderName, body, request.headers.get('cookie'))
+
     const response = await fetch(`https://mycompany404.erpnext.com/api/v2/document/Sales Order/${salesOrderName}`, {
       method: 'PUT',
-      credentials: 'include',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
+        'Cookie': request.headers.get('cookie')
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        items: body.items
+      }),
     });
 
     if (!response.ok) {
+      console.log(response)
       return NextResponse.json(
         { error: 'Failed to update sales order' },
         { status: response.status }

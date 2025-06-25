@@ -320,7 +320,7 @@ export default function SalesOrderDetailPage() {
                         <tr className="bg-gray-50">
                             <th className="px-4 py-3 text-left border-b">SKU ID</th>
                             <th className="px-4 py-3 text-left border-b">Assembled Quantity</th>
-                            <th className="px-4 py-3 text-left border-b">Pending Quantity</th>
+                            <th className="px-4 py-3 text-left border-b">Pending Quantity for Assembly</th>
                         </tr>
                     </thead>
                     <tbody>

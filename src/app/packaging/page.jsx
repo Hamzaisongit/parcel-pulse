@@ -1,19 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useRouter } from 'next/navigation';
+import { GlobalContext } from '../../Context/globalContext';
 
-export default function AssemblyPage() {
+export default function PackagingPage() {
     // State variables
     const [salesOrders, setSalesOrders] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const router = useRouter();
+
+    const { setLoadingController } = useContext(GlobalContext)
 
     // Fetch sales orders when component mounts
     useEffect(() => {
         async function fetchSalesOrders() {
             try {
+                setLoadingController({ show: true, text: 'Loading Sales Orders..' })
                 const response = await fetch('/api/sales-orders', {
                     credentials: 'include',
                     headers: {
@@ -25,10 +28,10 @@ export default function AssemblyPage() {
                 }
                 const data = await response.json();
                 setSalesOrders(data.data);
-                setLoading(false);
+                setLoadingController({ show: false, text: 'Loading Sales Orders..' })
             } catch (err) {
                 setError('Failed to fetch sales orders. Please try again.');
-                setLoading(false);
+                setLoadingController({ show: false, text: 'Loading Sales Orders..' })
                 console.error('Error:', err);
             }
         }
@@ -45,23 +48,20 @@ export default function AssemblyPage() {
         }
     }
 
-    // Show loading state
-    if (loading) {
-        return <div className="flex items-center justify-center min-h-screen text-lg text-gray-600">Loading sales orders...</div>;
-    }
-
     // Show error state
     if (error) {
         return <div className="flex items-center justify-center min-h-screen text-red-600 bg-red-50 p-4 rounded-lg">{error}</div>;
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-3xl mx-auto text-center mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Assembly Section</h1>
-                <p className="text-lg text-gray-600">Select a Sales Order to view its items</p>
+        <div className="min-h-[100dvh] bg-gray-50 px-4 sm:px-6 lg:px-8 flex flex-col">
+            {/* Header */}
+            <div className="max-w-3xl mx-auto text-center pt-8 pb-4">
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Packaging Section</h1>
+                <p className="text-lg text-gray-600">Select a Sales Order to start packaging</p>
             </div>
 
+            {/* Sales Order Selection */}
             <div className="max-w-xl mx-auto">
                 <select 
                     onChange={handleSalesOrderChange}
