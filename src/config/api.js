@@ -1,4 +1,5 @@
 // API Configuration
+// The ERP site base address is now managed via the ERP_SITE environment variable in .env.local
 const API_CONFIG = {
     // Remove baseUrl since we're using proxy
     endpoints: {

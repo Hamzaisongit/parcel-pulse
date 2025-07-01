@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export async function POST(request) {
     const body = await request.json();
     
-    const erpResponse = await fetch('https://mycompany404.erpnext.com/api/method/login', {
+    const erpResponse = await fetch(`${process.env.ERP_SITE}/api/method/login`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

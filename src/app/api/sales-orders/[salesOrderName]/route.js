@@ -4,7 +4,7 @@ export async function GET(request, { params }) {
   try {
     const { salesOrderName } = params;
     
-    const response = await fetch(`https://mycompany404.erpnext.com/api/v2/document/Sales Order/${salesOrderName}`, {
+    const response = await fetch(`${process.env.ERP_SITE}/api/v2/document/Sales Order/${salesOrderName}`, {
       headers: {
         'Accept': 'application/json',
         'Cookie': request.headers.get('cookie')
@@ -36,7 +36,7 @@ export async function PUT(request, { params }) {
     const body = await request.json();
     console.log(salesOrderName, body, request.headers.get('cookie'))
 
-    const response = await fetch(`https://mycompany404.erpnext.com/api/v2/document/Sales Order/${salesOrderName}`, {
+    const response = await fetch(`${process.env.ERP_SITE}/api/v2/document/Sales Order/${salesOrderName}`, {
       method: 'PUT',
       headers: {
         'Accept': 'application/json',

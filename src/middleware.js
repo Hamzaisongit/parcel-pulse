@@ -11,7 +11,7 @@ export async function middleware(request) {
     const cookies = request.headers.get('cookie') || ''
 
     const authResponse = await fetch(
-      `https://mycompany404.erpnext.com/api/method/frappe.auth.get_logged_user`,
+      `${process.env.ERP_SITE}/api/method/frappe.auth.get_logged_user`,
       {
         method: 'GET',
         headers: {
