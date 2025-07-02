@@ -104,6 +104,12 @@ export default function SalesOrderPackagingPage() {
             );
 
             if (itemToPack) {
+
+                if(itemToPack.custom_quantity_assembled <= 0){
+                    setScanningController({ show: true, text: `There are no assembled units available for ${itemToPack.item_code}`, status: 'failure' })
+                    return;
+                }
+
                 // Add item to current box
                 const newItem = {
                     itemCode: itemToPack.item_code,
@@ -287,7 +293,6 @@ export default function SalesOrderPackagingPage() {
                                     if (videoDevices.length) return;
                                     
                                     getVideoDevices().then(devices => {
-                                        console.log(devices)
                                         setVideoDevices(devices)
                                     }).catch((e) => {
                                         alert('Camera Permission is required!')
