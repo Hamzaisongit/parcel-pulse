@@ -98,7 +98,7 @@ export default function SalesOrderDetailPage() {
 
             // Check if all matching items are fully assembled
             const allFullyAssembled = matchingItems.every(item =>
-                item.qty - item.custom_quantity_delivered - item.custom_quantity_assembled === 0
+                item.qty - item.custom_quantity_delivered == item.custom_quantity_assembled
             );
 
             if (allFullyAssembled) {
@@ -325,10 +325,10 @@ export default function SalesOrderDetailPage() {
                     </thead>
                     <tbody>
                         {salesOrder?.items?.map(item => (
-                            <tr key={item.name} className={`${item.qty - item.custom_quantity_delivered == item.custom_quantity_assembled ? 'bg-green-300' : ''}`}>
+                            <tr key={item.name} className={`${item.qty - item.custom_quantity_delivered  == item.custom_quantity_assembled ? 'bg-green-300' : ''}`}>
                                 <td className="px-4 py-3 border-b">{item.item_code || '-'}</td>
                                 <td className="px-4 py-3 border-b">{item.custom_quantity_assembled || 0}</td>
-                                <td className="px-4 py-3 border-b">{item.qty - item.custom_quantity_delivered - item.custom_quantity_assembled}</td>
+                                <td className="px-4 py-3 border-b">{item.qty - item.custom_quantity_delivered - item.custom_quantity_packedbilled}</td>
                             </tr>
                         ))}
                     </tbody>
