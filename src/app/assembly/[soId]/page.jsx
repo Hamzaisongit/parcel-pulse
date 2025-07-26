@@ -11,12 +11,12 @@ import Link from 'next/link';
 
 export default function SalesOrderDetailPage() {
     // State variables
-    const [salesOrder, setSalesOrder] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [barcodeInput, setBarcodeInput] = useState(''); // This is the barcode input
     const [selectedVideoDevice, setSelectedVideoDevice] = useState('')
     const [videoDevices, setVideoDevices] = useState([])
+    const [pickList, setPickList] = useState({});
     // const [currentProcessingInfo, setcurrentProcessingInfo] = useState(''); // This is the barcode that is currently being processed
 
     const barcode = useBarcode((state) => state.barcode)
@@ -34,7 +34,7 @@ export default function SalesOrderDetailPage() {
 
     // Fetch sales order when component mounts
     useEffect(() => {
-        fetchSalesOrder();
+        fetchPickList();
     }, [salesOrderId]);
 
     useEffect(() => {
@@ -43,32 +43,33 @@ export default function SalesOrderDetailPage() {
     }, [barcode])
 
     useEffect(() => {
+        fetchPickList();
+    }, [salesOrderId]);
 
-    }, [])
     // useEffect(() => {
     //     document.addEventListener('barcode', handleUniqueBarcodeScans);
     //     return () => document.removeEventListener('barcode', handleUniqueBarcodeScans);
     // }, []);
 
-    async function fetchSalesOrder() {
+    async function fetchPickList() {
         try {
-            setLoadingController({ show: true, text: 'Loading Sales Order..' })
-            const response = await fetch(`/api/sales-orders/${salesOrderId}`, {
+            setLoadingController({ show: true, text: 'Loading Pick List..' })
+            const response = await fetch(`/api/pick-lists/${salesOrderId}`, {
                 credentials: 'include',
                 headers: {
                     'Accept': 'application/json',
                 },
             });
             if (!response.ok) {
-                throw new Error('Failed to fetch sales order');
+                throw new Error('Failed to fetch pick list');
             }
             const data = await response.json();
-            setSalesOrder(data.data);
+            setPickList(data.data);
         } catch (err) {
-            setError('Failed to fetch sales order. Please try again.');
+            setError('Failed to fetch pick list. Please try again.');
             console.error('Error:', err);
         } finally {
-            setLoadingController({ show: false, text: 'Loading Sales Order..' })
+            setLoadingController({ show: false, text: 'Loading Pick List..' })
             setLoading(false);
         }
     }
@@ -81,54 +82,47 @@ export default function SalesOrderDetailPage() {
     // Handle barcode submission
     async function handleBarcodeSubmit(barcodeValue) {
 
-        console.log('here', barcodeValue, salesOrder)
-        if (!barcodeValue || !salesOrder) return;
+        console.log('here', barcodeValue, pickList)
+        if (!barcodeValue || !pickList) return;
 
         try {
             setLoadingController({ show: true, text: 'Loading' })
-            // Find all items with matching UPC/EAN
-            console.log("salesOrder before update", salesOrder)
-            const matchingItems = salesOrder.items.filter(item =>
-                item.custom_upcean == String(barcodeValue).slice(0, 12) // just a hack to match the barcode
+            const matchingLocations = pickList.locations.filter(location =>
+                location.item_code == String(barcodeValue).slice(0, 12)
             );
 
-            if (matchingItems.length === 0) {
+            if (matchingLocations.length === 0) {
                 setScanningController({ show: true, text: `No matching Item found for the barcode!`, status: 'failure' })
                 return;
             }
 
-            // Check if all matching items are fully assembled
-            const allFullyAssembled = matchingItems.every(item =>
-                item.qty - item.custom_quantity_delivered == item.custom_quantity_assembled
+            const allFullyPicked = matchingLocations.every(location =>
+                location.qty == location.picked_qty
             );
 
-            if (allFullyAssembled) {
-                setScanningController({ show: true, text: `All items with this barcode are already assembled!`, status: 'alert' })
+            if (allFullyPicked) {
+                setScanningController({ show: true, text: `All items with this barcode are already picked!`, status: 'alert' })
                 return;
             }
 
-            // Find the first item that needs assembly
-            const itemToAssemble = matchingItems.find(item =>
-                (item.custom_quantity_assembled || 0) < item.qty - item.custom_quantity_delivered
+            const locationToPick = matchingLocations.find(location =>
+                (location.picked_qty || 0) < location.qty
             );
 
-            if (itemToAssemble) {
-                // Increment assembled quantity
-                const newAssembledQuantity = (itemToAssemble.custom_quantity_assembled || 0) + 1;
+            if (locationToPick) {
+                const newPickedQty = (locationToPick.picked_qty || 0) + 1;
 
-                // Update the item
-                const updatedItems = salesOrder.items.map((i)=>{
-                    if(i.name == itemToAssemble.name){
+                const updatedLocations = pickList.locations.map((l)=>{
+                    if(l.name == locationToPick.name){
                         return {
-                            ...i,
-                            custom_quantity_assembled: newAssembledQuantity
+                            ...l,
+                            picked_qty: newPickedQty
                         }
                     }
-                    
-                    return i;
+                    return l;
                 })
 
-                const updateResponse = await fetch(`/api/sales-orders/${salesOrder.name}`, {
+                const updateResponse = await fetch(`/api/pick-lists/${pickList.name}`, {
                     method: 'PUT',
                     credentials: 'include',
                     headers: {
@@ -136,32 +130,27 @@ export default function SalesOrderDetailPage() {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        items: updatedItems
+                        locations: updatedLocations
                     })
                 });
 
                 if (!updateResponse.ok) {
-                    throw new Error('Failed to update assembly quantity');
+                    throw new Error('Failed to update picked quantity');
                 }
 
-                // Refresh the sales order
-                // await fetchSalesOrder();
-
-                setSalesOrder(p => {
-                    const newItems = p.items.map(item => {
-                        if (item.name === itemToAssemble.name) {
+                setPickList(p => {
+                    const newLocations = p.locations.map(location => {
+                        if (location.name === locationToPick.name) {
                             return {
-                                ...item,
-                                custom_quantity_assembled: newAssembledQuantity
+                                ...location,
+                                picked_qty: newPickedQty
                             };
                         }
-                        return item;
+                        return location;
                     });
-
-                    return { ...p, items: newItems };
+                    return { ...p, locations: newLocations };
                 })
-                // Show success message
-                setScanningController({ show: true, text: `Successfully assembled ${itemToAssemble.item_code}`, status: 'success' })
+                setScanningController({ show: true, text: `Successfully picked ${locationToPick.item_code}`, status: 'success' })
             }
 
             // // Clear barcode
@@ -201,7 +190,7 @@ export default function SalesOrderDetailPage() {
 
     function handleUniqueBarcodeScans(barcodeValue) {
         console.log('got itt:', barcodeValue, 'currentProcessingInfo:', currentProcessingInfo.current);
-        if (!barcodeValue || currentProcessingInfo.current.status === 'processing' || !salesOrder) {
+        if (!barcodeValue || currentProcessingInfo.current.status === 'processing' || !pickList) {
             return;
         }
         currentProcessingInfo.current.barcodeValue = barcodeValue;
@@ -220,15 +209,15 @@ export default function SalesOrderDetailPage() {
     // }
 
     // Show error if sales order is not found
-    if (!salesOrder && !loading) {
-        return <div className="error">Sales order not found</div>;
+    if (!pickList && !loading) {
+        return <div className="error">Pick list not found</div>;
     }
 
     return (
         <div className="max-w-6xl mx-auto px-4 py-8">
            <Link href="/assembly"><ArrowLeft size={30} className='mb-2 rounded-md active:bg-gray-300'></ArrowLeft></Link> 
-            <h1 className="text-2xl font-bold mb-2">Sales Order Items - {salesOrder.name}</h1>
-            <p className="text-gray-600 mb-6">Customer: {salesOrder.customer}</p>
+            <h1 className="text-2xl font-bold mb-2">Pick List Locations - {pickList.name}</h1>
+            <p className="text-gray-600 mb-6">Customer: {pickList.customer}</p>
             <div className="header flex flex-col gap-5 mb-5">
 
                 {/* Camera Screen */}
@@ -315,21 +304,21 @@ export default function SalesOrderDetailPage() {
 
 
             <div className="overflow-x-auto">
-                <p className="text-gray-600 mb-2">Order Items:</p>
+                <p className="text-gray-600 mb-2">Locations:</p>
                 <table className="w-full border-collapse">
                     <thead>
                         <tr className="bg-gray-50">
                             <th className="px-4 py-3 text-left border-b">SKU ID</th>
-                            <th className="px-4 py-3 text-left border-b">Assembled Quantity</th>
-                            <th className="px-4 py-3 text-left border-b">Pending Quantity for Assembly</th>
+                            <th className="px-4 py-3 text-left border-b">Picked Quantity</th>
+                            <th className="px-4 py-3 text-left border-b">Required Quantity</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {salesOrder?.items?.map(item => (
-                            <tr key={item.name} className={`${item.qty - item.custom_quantity_delivered  == item.custom_quantity_assembled ? 'bg-green-300' : ''}`}>
-                                <td className="px-4 py-3 border-b">{item.item_code || '-'}</td>
-                                <td className="px-4 py-3 border-b">{item.custom_quantity_assembled || 0}</td>
-                                <td className="px-4 py-3 border-b">{item.qty - item.custom_quantity_delivered}</td>
+                        {pickList?.locations?.map(location => (
+                            <tr key={location.name} className={`${location.qty == location.picked_qty ? 'bg-green-300' : ''}`}>
+                                <td className="px-4 py-3 border-b">{location.item_code || '-'}</td>
+                                <td className="px-4 py-3 border-b">{location.picked_qty || 0}</td>
+                                <td className="px-4 py-3 border-b">{location.qty}</td>
                             </tr>
                         ))}
                     </tbody>

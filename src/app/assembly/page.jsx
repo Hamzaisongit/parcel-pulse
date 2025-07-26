@@ -8,57 +8,48 @@ import { ArrowLeft } from 'lucide-react';
 
 export default function AssemblyPage() {
     // State variables
-    const [salesOrders, setSalesOrders] = useState([]);
+    const [pickLists, setPickLists] = useState([]);
     // const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const router = useRouter();
 
     const { setLoadingController } = useContext(GlobalContext)
 
-    // Your ERPNext API token
-    // const token = '708ce20d2f35906:f9a7dae3b071cc1';
-
-    // Fetch sales orders when component mounts
+    // Fetch pick lists when component mounts
     useEffect(() => {
-        async function fetchSalesOrders() {
+        async function fetchPickLists() {
             try {
-                setLoadingController({ show: true, text: 'Loading Sales Orders..' })
-                const response = await fetch('/api/sales-orders', {
+                setLoadingController({ show: true, text: 'Loading Pick Lists..' })
+                const response = await fetch('/api/pick-lists', {
                     credentials: 'include',
                     headers: {
                         'Accept': 'application/json',
                     },
                 });
-                console.log(response)
                 if (!response.ok) {
-                    throw new Error('Failed to fetch sales orders');
+                    throw new Error('Failed to fetch pick lists');
                 }
                 const data = await response.json();
-                setSalesOrders(data.data);
-                setLoadingController({ show: false, text: 'Loading Sales Orders..' })
+                setPickLists(data.data);
+                setLoadingController({ show: false, text: 'Loading Pick Lists..' })
             } catch (err) {
-                setError('Failed to fetch sales orders. Please try again.');
-                setLoadingController({ show: false, text: 'Loading Sales Orders..' })
+                setError('Failed to fetch pick lists. Please try again.');
+                setLoadingController({ show: false, text: 'Loading Pick Lists..' })
                 console.error('Error:', err);
             }
         }
 
-        fetchSalesOrders();
+        fetchPickLists();
     }, []);
 
-    // Handle sales order selection
-    function handleSalesOrderChange(event) {
-        const selectedOrder = event.target.value;
-        if (selectedOrder) {
-            // Navigate to the selected sales order page
-            router.push(`/assembly/${selectedOrder}`);
+    // Handle pick list selection
+    function handlePickListChange(event) {
+        const selectedPickList = event.target.value;
+        if (selectedPickList) {
+            // Navigate to the selected pick list page
+            router.push(`/assembly/${selectedPickList}`);
         }
     }
-
-    // Show loading state
-    // if (loading) {
-    //     return <div className="flex items-center justify-center min-h-screen text-lg text-gray-600">Loading sales orders...</div>;
-    // }
 
     // Show error state
     if (error) {
@@ -73,21 +64,21 @@ export default function AssemblyPage() {
             </div>
             <div className="max-w-[100vw] mx-auto text-center pt-8 pb-4">
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">Assembly Section</h1>
-                <p className="text-lg text-gray-600">Select a Sales Order to view its items</p>
+                <p className="text-lg text-gray-600">Select a Pick List to view its items</p>
             </div>
 
             {/* Spacer to push select into center */}
             <div className="py-5 flex-grow flex flex-col items-center">
 
                 <select
-                    onChange={handleSalesOrderChange}
+                    onChange={handlePickListChange}
                     defaultValue=""
                     className="block h-13 w-xs px-4 py-3 mt-5 text-xl border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 >
-                    <option value="" disabled className="text-gray-500">Select a Sales Order</option>
-                    {salesOrders.map(order => (
-                        <option key={order.name} value={order.name} className="py-2">
-                            {order.name}
+                    <option value="" disabled className="text-gray-500">Select a Pick List</option>
+                    {pickLists.map(list => (
+                        <option key={list.name} value={list.name} className="py-2">
+                            {list.name}
                         </option>
                     ))}
                 </select>
