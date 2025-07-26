@@ -7,6 +7,7 @@ import { GlobalContext } from '../../../Context/globalContext';
 import useBarcode from '../../../Stores/barcodeStore';
 import IntermidScanningController from '../../../Components/IntermidScanningController';
 import { ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 export default function SalesOrderDetailPage() {
     // State variables
@@ -225,7 +226,7 @@ export default function SalesOrderDetailPage() {
 
     return (
         <div className="max-w-6xl mx-auto px-4 py-8">
-            <ArrowLeft size={30} className='mb-2 rounded-md active:bg-gray-300' onClick={() => router.push('/assembly')}></ArrowLeft>
+           <Link href="/assembly"><ArrowLeft size={30} className='mb-2 rounded-md active:bg-gray-300'></ArrowLeft></Link> 
             <h1 className="text-2xl font-bold mb-2">Sales Order Items - {salesOrder.name}</h1>
             <p className="text-gray-600 mb-6">Customer: {salesOrder.customer}</p>
             <div className="header flex flex-col gap-5 mb-5">
@@ -328,7 +329,7 @@ export default function SalesOrderDetailPage() {
                             <tr key={item.name} className={`${item.qty - item.custom_quantity_delivered  == item.custom_quantity_assembled ? 'bg-green-300' : ''}`}>
                                 <td className="px-4 py-3 border-b">{item.item_code || '-'}</td>
                                 <td className="px-4 py-3 border-b">{item.custom_quantity_assembled || 0}</td>
-                                <td className="px-4 py-3 border-b">{item.qty - item.custom_quantity_delivered - item.custom_quantity_packedbilled}</td>
+                                <td className="px-4 py-3 border-b">{item.qty - item.custom_quantity_delivered}</td>
                             </tr>
                         ))}
                     </tbody>

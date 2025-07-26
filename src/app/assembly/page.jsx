@@ -3,6 +3,8 @@
 import { useState, useEffect, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { GlobalContext } from '../../Context/globalContext';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 
 export default function AssemblyPage() {
     // State variables
@@ -64,28 +66,31 @@ export default function AssemblyPage() {
     }
 
     return (
-        <div className="min-h-[100dvh] bg-gray-50 px-4 sm:px-6 lg:px-8 flex flex-col">
+        <div className="min-h-[100vh] bg-gray-50 px-4 flex flex-col items-center justify-center ">
             {/* Header */}
-            <div className="max-w-3xl mx-auto text-center pt-8 pb-4">
+            <div className='mt-2 flex flex-row justify-center items-center'>
+                <Link href="/" className='p-1 px-2 rounded-md bg-gray-300 flex flex-row justify-center items-center gap-1' ><ArrowLeft size={20} strokeWidth={2} className='rounded-md mb-1 active:bg-gray-300'></ArrowLeft><span>Home</span></Link>
+            </div>
+            <div className="max-w-[100vw] mx-auto text-center pt-8 pb-4">
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">Assembly Section</h1>
                 <p className="text-lg text-gray-600">Select a Sales Order to view its items</p>
             </div>
 
             {/* Spacer to push select into center */}
             <div className="py-5 flex-grow flex flex-col items-center">
-                
-                    <select
-                        onChange={handleSalesOrderChange}
-                        defaultValue=""
-                        className="block h-13 w-xs px-4 py-3 mt-5 text-xl border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-                    >
-                        <option value="" disabled className="text-gray-500">Select a Sales Order</option>
-                        {salesOrders.map(order => (
-                            <option key={order.name} value={order.name} className="py-2">
-                                {order.name}
-                            </option>
-                        ))}
-                    </select>
+
+                <select
+                    onChange={handleSalesOrderChange}
+                    defaultValue=""
+                    className="block h-13 w-xs px-4 py-3 mt-5 text-xl border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                >
+                    <option value="" disabled className="text-gray-500">Select a Sales Order</option>
+                    {salesOrders.map(order => (
+                        <option key={order.name} value={order.name} className="py-2">
+                            {order.name}
+                        </option>
+                    ))}
+                </select>
 
             </div>
         </div>

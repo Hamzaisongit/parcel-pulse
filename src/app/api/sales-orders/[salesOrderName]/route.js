@@ -34,7 +34,6 @@ export async function PUT(request, { params }) {
   try {
     const { salesOrderName } = await params;
     const body = await request.json();
-    console.log(salesOrderName, body, request.headers.get('cookie'))
 
     const response = await fetch(`${process.env.ERP_SITE}/api/v2/document/Sales Order/${salesOrderName}`, {
       method: 'PUT',

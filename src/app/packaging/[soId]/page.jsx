@@ -7,6 +7,7 @@ import { GlobalContext } from '../../../Context/globalContext';
 import useBarcode from '../../../Stores/barcodeStore';
 import IntermidScanningController from '../../../Components/IntermidScanningController';
 import { ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 export default function SalesOrderPackagingPage() {
     // State variables
@@ -16,6 +17,7 @@ export default function SalesOrderPackagingPage() {
     const [barcodeInput, setBarcodeInput] = useState('');
     const [selectedVideoDevice, setSelectedVideoDevice] = useState('')
     const [videoDevices, setVideoDevices] = useState([])
+    const [currentScannedItem, setCurrentScannedItem] = useState({})
     const [currentBox, setCurrentBox] = useState({
         boxNumber: 1,
         items: [],
@@ -105,7 +107,9 @@ export default function SalesOrderPackagingPage() {
 
             if (itemToPack) {
 
-                if(itemToPack.custom_quantity_assembled <= 0){
+                setCurrentScannedItem(itemToPack)
+
+                if(itemToPack.custom_quantity_assembled <= 0 || itemToPack.custom_quantity_assembled <= itemToPack.custom_quantity_packedbilled ){
                     setScanningController({ show: true, text: `There are no assembled units available for ${itemToPack.item_code}`, status: 'failure' })
                     return;
                 }
@@ -205,7 +209,7 @@ export default function SalesOrderPackagingPage() {
 
     return (
         <div className="max-w-6xl mx-auto px-4 py-8">
-            <ArrowLeft size={30} className='mb-2 rounded-md active:bg-gray-300' onClick={() => router.push('/packaging')}></ArrowLeft>
+            <Link href="/packaging"><ArrowLeft size={30} className='mb-2 rounded-md active:bg-gray-300'></ArrowLeft></Link> 
             <h1 className="text-2xl font-bold mb-2">Sales Order Packaging - {salesOrder.name}</h1>
             <p className="text-gray-600 mb-6">Customer: {salesOrder.customer}</p>
             
@@ -247,40 +251,7 @@ export default function SalesOrderPackagingPage() {
                 )}
             </div>
 
-            <div className="header flex flex-col gap-5 mb-5">
-                {/* Camera Screen */}
-                {(
-                    <div className={`${scanning ? '' : 'hidden'} overflow-scroll fixed inset-0 flex flex-col items-center justify-center gap-10 bg-gray-50`}>
-                        <video id="videoElement" className="max-w-screen w-xs h-xs object-cover rounded-lg shadow-md"></video>
-
-                        <div className='flex flex-col items-center justify-center gap-5'>
-                            <div className='bg-gray-300 px-3 py-3 rounded-sm flex flex-row items-center justify-center gap-5 shadow-md'>
-                                <input
-                                    type="text"
-                                    value={barcodeInput}
-                                    onChange={handleBarcodeChange}
-                                    placeholder="Scan or enter barcode"
-                                    className="bg-gray-100 flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    disabled={!scanning}
-                                />
-                                <button
-                                    onClick={() => { handleBarcodeSubmit(barcodeInput) }}
-                                    className="px-4 py-2 bg-green-500 text-white font-bold rounded-md hover:bg-green-600 transition-colors"
-                                >
-                                    Process
-                                </button>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={toggleScanning}
-                                className="px-4 py-2 bg-blue-500 text-white font-bold rounded-md hover:bg-blue-600 transition-colors"
-                            >
-                                Stop Scanning
-                            </button>
-                        </div>
-                    </div>
-                )}
+            <div className="flex flex-col gap-5 mb-5">
 
                 {/* Barcode scanning section */}
                 <div className="barcode-section bg-white p-6 rounded-lg shadow-md mb-8">
@@ -331,23 +302,59 @@ export default function SalesOrderPackagingPage() {
                     <thead>
                         <tr className="bg-gray-50">
                             <th className="px-4 py-3 text-left border-b">SKU ID</th>
+                            <th className="px-4 py-3 text-left border-b">Assembled Quanity</th>
                             <th className="px-4 py-3 text-left border-b">Packed Quantity</th>
-                            <th className="px-4 py-3 text-left border-b">Pending Quantity for Packaging</th>
+                            <th className="px-4 py-3 text-left border-b">Required Quanity</th>
                         </tr>
                     </thead>
                     <tbody>
                         {salesOrder?.items?.map(item => (
                             <tr key={item.name} className={`${item.qty - item.custom_quantity_delivered == (item.custom_quantity_packedbilled || 0) ? 'bg-green-300' : ''}`}>
                                 <td className="px-4 py-3 border-b">{item.item_code || '-'}</td>
+                                <td className="px-4 py-3 border-b">{item.custom_quantity_assembled}</td>
                                 <td className="px-4 py-3 border-b">{item.custom_quantity_packedbilled || 0}</td>
-                                <td className="px-4 py-3 border-b">{item.qty - item.custom_quantity_delivered - (item.custom_quantity_packedbilled || 0)}</td>
+                                <td className="px-4 py-3 border-b">{item.qty - item.custom_quantity_delivered}</td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
 
-            <IntermidScanningController></IntermidScanningController>
+            {/* Camera Screen */}
+            {(
+                    <div className={`${scanning ? '' : 'hidden'} overflow-scroll fixed inset-0 flex flex-col items-center justify-center gap-10 bg-gray-50`}>
+                        <video id="videoElement" className="max-w-screen w-xs h-xs object-cover rounded-lg shadow-md"></video>
+
+                        <div className='flex flex-col items-center justify-center gap-5'>
+                            <div className='bg-gray-300 px-3 py-3 rounded-sm flex flex-row items-center justify-center gap-5 shadow-md'>
+                                <input
+                                    type="text"
+                                    value={barcodeInput}
+                                    onChange={handleBarcodeChange}
+                                    placeholder="Scan or enter barcode"
+                                    className="bg-gray-100 flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    disabled={!scanning}
+                                />
+                                <button
+                                    onClick={() => { handleBarcodeSubmit(barcodeInput) }}
+                                    className="px-4 py-2 bg-green-500 text-white font-bold rounded-md hover:bg-green-600 transition-colors"
+                                >
+                                    Process
+                                </button>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={toggleScanning}
+                                className="px-4 py-2 bg-blue-500 text-white font-bold rounded-md hover:bg-blue-600 transition-colors"
+                            >
+                                Stop Scanning
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+            <IntermidScanningController sales_order={salesOrder} scanned_item={currentScannedItem} isPackaging={true} setSalesOrder={setSalesOrder}></IntermidScanningController>
         </div>
     );
 } 
