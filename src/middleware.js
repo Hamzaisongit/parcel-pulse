@@ -3,7 +3,14 @@ import { NextResponse } from 'next/server'
 export async function middleware(request) {
   const path = request.nextUrl.pathname
 
-  if (path === '/login') {
+  // Allow PWA assets to pass through without authentication
+  if (path === '/login' || 
+      path.startsWith('/manifest') ||
+      path.startsWith('/sw.js') ||
+      path.startsWith('/icon-') ||
+      path.startsWith('/favicon') ||
+      path.startsWith('/_next/') ||
+      path.startsWith('/api/')) {
     return NextResponse.next()
   }
 
@@ -16,7 +23,7 @@ export async function middleware(request) {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
-          'Cookie': cookies, // ✅ Manually attach incoming cookies
+          'Cookie': cookies,
         },
       }
     )

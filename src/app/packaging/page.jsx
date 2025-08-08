@@ -8,7 +8,7 @@ import { ArrowLeft } from 'lucide-react';
 
 export default function PackagingPage() {
     // State variables
-    const [salesOrders, setSalesOrders] = useState([]);
+    const [deliveryNotes, setDeliveryNotes] = useState([]);
     const [error, setError] = useState(null);
     const router = useRouter();
 
@@ -16,37 +16,35 @@ export default function PackagingPage() {
 
     // Fetch sales orders when component mounts
     useEffect(() => {
-        async function fetchSalesOrders() {
+        async function fetchDeliveryNotes() {
             try {
-                setLoadingController({ show: true, text: 'Loading Sales Orders..' })
-                const response = await fetch('/api/sales-orders', {
+                setLoadingController({ show: true, text: 'Loading Delivery Notes..' })
+                const response = await fetch('/api/delivery-notes', {
                     credentials: 'include',
                     headers: {
                         'Accept': 'application/json',
                     },
                 });
                 if (!response.ok) {
-                    throw new Error('Failed to fetch sales orders');
+                    throw new Error('Failed to fetch delivery notes');
                 }
                 const data = await response.json();
-                setSalesOrders(data.data);
-                setLoadingController({ show: false, text: 'Loading Sales Orders..' })
+                setDeliveryNotes(data.data);
+                setLoadingController({ show: false, text: 'Loading Delivery Notes..' })
             } catch (err) {
-                setError('Failed to fetch sales orders. Please try again.');
-                setLoadingController({ show: false, text: 'Loading Sales Orders..' })
+                setError('Failed to fetch delivery notes. Please try again.');
+                setLoadingController({ show: false, text: 'Loading Delivery Notes..' })
                 console.error('Error:', err);
             }
         }
-
-        fetchSalesOrders();
+        fetchDeliveryNotes();
     }, []);
 
     // Handle sales order selection
-    function handleSalesOrderChange(event) {
-        const selectedOrder = event.target.value;
-        if (selectedOrder) {
-            // Navigate to the selected sales order page
-            router.push(`/packaging/${selectedOrder}`);
+    function handleDeliveryNoteChange(event) {
+        const selectedNote = event.target.value;
+        if (selectedNote) {
+            router.push(`/packaging/${selectedNote}`);
         }
     }
 
@@ -65,20 +63,20 @@ export default function PackagingPage() {
 
             <div className="max-w-[100vw] mx-auto text-center pt-8 pb-4">
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">Packaging Section</h1>
-                <p className="text-lg text-gray-600">Select a Sales Order to start packaging</p>
+                <p className="text-lg text-gray-600">Select a Delivery Note to start packaging</p>
             </div>
 
-            {/* Sales Order Selection */}
+            {/* Delivery Note Selection */}
             <div className="py-5 flex-grow flex flex-col items-center">
                 <select 
-                    onChange={handleSalesOrderChange}
+                    onChange={handleDeliveryNoteChange}
                     defaultValue=""
                     className="block h-13 w-xs px-4 py-3 mt-5 text-xl border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 >
-                    <option value="" disabled className="text-gray-500">Select a Sales Order</option>
-                    {salesOrders.map(order => (
-                        <option key={order.name} value={order.name} className="py-2">
-                            {order.name} - {order.customer} ({order.transaction_date})
+                    <option value="" disabled className="text-gray-500">Select a Delivery Note</option>
+                    {deliveryNotes.map(note => (
+                        <option key={note.name} value={note.name} className="py-2">
+                            {note.name} - {note.customer} ({note.posting_date})
                         </option>
                     ))}
                 </select>
