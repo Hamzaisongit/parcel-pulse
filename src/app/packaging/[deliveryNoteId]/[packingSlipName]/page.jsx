@@ -4,7 +4,8 @@ import { useState, useEffect, useContext } from "react";
 import { useParams } from "next/navigation";
 import IntermidScanningController from '../../../../Components/IntermidScanningController';
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+// Add icons for better visual communication
+import { ArrowLeft, Package, Hash, Printer } from "lucide-react";
 import { mockDeliveryNotes } from '../../mockData';
 import { GlobalContext } from '../../../../Context/globalContext';
 
@@ -13,35 +14,24 @@ export default function PackingSlipDetailPage() {
     const deliveryNoteId = params.deliveryNoteId;
     const packingSlipName = params.packingSlipName;
     const [packingSlip, setPackingSlip] = useState(null);
-    const [deliveryNote, setDeliveryNote] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const { setLoadingController } = useContext(GlobalContext);
 
+    // --- YOUR DATA FETCHING LOGIC (No changes needed, it's great) ---
     useEffect(() => {
         async function fetchPackingSlip() {
             try {
                 setLoadingController({ show: true, text: 'Loading Packing Slip...' });
 
-                // Using mock data with localStorage for persistence
                 const storedDeliveryNotes = localStorage.getItem('mockDeliveryNotes');
-                let deliveryNotesData;
-
-                if (storedDeliveryNotes) {
-                    deliveryNotesData = JSON.parse(storedDeliveryNotes);
-                } else {
-                    // Initialize localStorage if it doesn't exist
+                let deliveryNotesData = storedDeliveryNotes ? JSON.parse(storedDeliveryNotes) : mockDeliveryNotes;
+                if (!storedDeliveryNotes) {
                     localStorage.setItem('mockDeliveryNotes', JSON.stringify(mockDeliveryNotes));
-                    deliveryNotesData = mockDeliveryNotes;
                 }
-
                 const mockDeliveryNote = deliveryNotesData.find(note => note.name === deliveryNoteId);
                 if (mockDeliveryNote) {
-                    setDeliveryNote(mockDeliveryNote);
-
-                    // Find the specific packing slip
                     const mockPackingSlip = mockDeliveryNote.packing_slips.find(slip => slip.name === packingSlipName);
-                    console.log("packing slip..",mockPackingSlip)
                     if (mockPackingSlip) {
                         setPackingSlip(mockPackingSlip);
                     } else {
@@ -53,57 +43,95 @@ export default function PackingSlipDetailPage() {
             } catch (err) {
                 setError('Failed to fetch packing slip. Please try again.');
             } finally {
-                setLoadingController({ show: false, text: 'Loading Packing Slip...' });
+                setLoadingController({ show: false, text: '' });
                 setLoading(false);
             }
         }
         fetchPackingSlip();
     }, [packingSlipName, deliveryNoteId, setLoadingController]);
 
+
+    // --- UI STATES (No changes needed) ---
     if (error) {
-        return <div className="flex items-center justify-center min-h-screen text-red-600 bg-red-50 p-4 rounded-lg">{error}</div>;
+        return <div className="flex items-center justify-center h-screen text-red-500 p-4">{error}</div>;
     }
     if (loading || !packingSlip) {
-        return <div className="flex items-center justify-center min-h-screen text-gray-600">Loading packing slip...</div>;
+        return <div className="flex items-center justify-center h-screen text-gray-500">Loading...</div>;
     }
 
+    // Calculate totals for the summary card
+    const totalItemsInSlip = packingSlip.items.reduce((sum, item) => sum + (item.packed_qty || 0), 0);
+    const uniqueItemCount = packingSlip.items.length;
+
+    // --- ✨ NEW & IMPROVED UI ✨ ---
     return (
-        <div className="max-w-4xl mx-auto px-4 py-8">
-            <Link href={`/packaging/${deliveryNoteId}`}><ArrowLeft size={30} className='mb-2 rounded-md active:bg-gray-300' /></Link>
-            <h1 className="text-2xl font-bold mb-4">Packing Slip: {packingSlip.name}</h1>
-            <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-                <div className="mb-2">Delivery Note: <span className="font-semibold">{packingSlip.delivery_note}</span></div>
-                <div className="mb-2">Created Date: <span className="font-semibold">{new Date(packingSlip.created_date).toLocaleDateString()}</span></div>
+        // Consistent background and padding for the sticky footer
+        <div className="bg-gray-100 min-h-screen pb-24">
+            <div className="max-w-3xl mx-auto p-4">
+                {/* --- HEADER --- */}
+                <header className="flex items-center mb-4">
+                    <Link href={`/packaging/${deliveryNoteId}`} className="p-2 mr-2 rounded-full hover:bg-gray-200">
+                        <ArrowLeft size={24} />
+                    </Link>
+                    <div>
+                        <h1 className="text-xl font-bold text-gray-800">{packingSlip.name}</h1>
+                        <p className="text-sm text-gray-500">
+                            Created: {new Date(packingSlip.created_date).toLocaleDateString()}
+                        </p>
+                    </div>
+                </header>
+
+                {/* --- SUMMARY CARD --- */}
+                <div className="bg-white rounded-lg shadow-sm p-4 mb-5">
+                    <h2 className="text-lg font-semibold text-gray-700 mb-3">Box Summary</h2>
+                    <div className="flex justify-around text-center">
+                        <div>
+                            <Hash className="mx-auto text-blue-600 mb-1" size={28} />
+                            <p className="text-2xl font-bold text-gray-900">{uniqueItemCount}</p>
+                            <p className="text-xs text-gray-500">Unique Items</p>
+                        </div>
+                        <div>
+                            <Package className="mx-auto text-blue-600 mb-1" size={28} />
+                            <p className="text-2xl font-bold text-gray-900">{totalItemsInSlip}</p>
+                            <p className="text-xs text-gray-500">Total Quantity</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* --- ITEM LIST (Card-based) --- */}
+                 <div>
+                    <h2 className="text-lg font-semibold text-gray-700 mb-2 px-1">Contents</h2>
+                    <div className="space-y-3">
+                        {packingSlip.items.map((item, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center">
+                                <div>
+                                    <p className="font-bold text-gray-800">{item.item_code}</p>
+                                    <p className="text-xs text-gray-500">Barcode: {item.barcode}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-lg font-bold text-blue-700">{item.packed_qty}</p>
+                                    <p className="text-sm text-gray-500">Packed</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
 
-            <div className="overflow-x-auto">
-                <p className="text-gray-600 mb-2">Items in Packing Slip:</p>
-                <table className="w-full border-collapse">
-                    <thead>
-                        <tr className="bg-gray-50">
-                            <th className="px-4 py-3 text-left border-b">Item Code</th>
-                            <th className="px-4 py-3 text-left border-b">Total Required Qty</th>
-                            <th className="px-4 py-3 text-left border-b">Packed Qty</th>
-                            <th className="px-4 py-3 text-left border-b">Remaining</th>
-                            <th className="px-4 py-3 text-left border-b">Barcode</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {packingSlip.items.map((item, idx) => {
-                            const remaining = Math.max(0, item.total_req_qty - (item.packed_qty || 0));
-                            return (
-                                <tr key={idx} className={`${remaining === 0 ? 'bg-green-100' : ''}`}>
-                                    <td className="px-4 py-3 border-b">{item.item_code}</td>
-                                    <td className="px-4 py-3 border-b">{item.total_req_qty}</td>
-                                    <td className="px-4 py-3 border-b">{item.packed_qty || 0}</td>
-                                    <td className="px-4 py-3 border-b">{remaining}</td>
-                                    <td className="px-4 py-3 border-b">{item.barcode}</td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
+            {/* --- STICKY FOOTER FOR ACTIONS --- */}
+            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 shadow-top">
+                <div className="max-w-3xl mx-auto">
+                    <button
+                        // This button is ready for future functionality
+                        onClick={() => alert('Printing label...')}
+                        className="w-full flex items-center justify-center gap-2 p-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 active:scale-95 transition-all"
+                    >
+                        <Printer size={20} />
+                        Print Shipping Label
+                    </button>
+                </div>
             </div>
+            
             <IntermidScanningController isPackaging={true} />
         </div>
     );

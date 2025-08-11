@@ -1,57 +1,57 @@
 'use client';
 
-import { useState, useEffect, useContext, useRef } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getVideoDevices, startScanning, stopScanning } from '../../../../services/barcodeReader';
 import { GlobalContext } from '../../../../Context/globalContext';
 import useBarcode from '../../../../Stores/barcodeStore';
-import IntermidScanningController from '../../../../Components/IntermidScanningController';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, X, ScanLine, Plus, Minus, CheckSquare, Camera } from 'lucide-react';
 import { mockDeliveryNotes, calculatePackedQuantity, getRemainingQuantity } from '../../mockData';
+import IntermidScanningController from '../../../../Components/IntermidScanningController';
 
 export default function NewPackingSlipPage() {
+    // --- STATE MANAGEMENT ---
     const [deliveryNote, setDeliveryNote] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [selectedItems, setSelectedItems] = useState([]);
     const [packedQty, setPackedQty] = useState({}); // { [item_name]: qty }
-    const [selectedVideoDevice, setSelectedVideoDevice] = useState('');
     const [videoDevices, setVideoDevices] = useState([]);
-    const [scanning, setScanning] = useState(false);
-    const [barcodeInput, setBarcodeInput] = useState('');
-    
+    const [selectedVideoDevice, setSelectedVideoDevice] = useState('');
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
+
     const params = useParams();
     const deliveryNoteId = params.deliveryNoteId;
     const router = useRouter();
     const { setLoadingController, setScanningController, currentProcessingInfo } = useContext(GlobalContext);
-    
+
+    // Zustand store for barcode state
     const barcode = useBarcode((state) => state.barcode);
     const setBarcode = useBarcode((state) => state.setBarcode);
 
+    // --- DATA FETCHING ---
     useEffect(() => {
         fetchDeliveryNote();
     }, [deliveryNoteId]);
 
+    // --- ✨ CORE BARCODE PROCESSING LOGIC (INTEGRATED) ✨ ---
+    // This useEffect hook now correctly listens for barcode changes from the global store.
     useEffect(() => {
-        if (!barcode) return;
-        handleUniqueBarcodeScans(barcode);
-    }, [barcode]);
+        console.log('[BarcodeDebug] useEffect: barcode:', barcode, 'isScannerOpen:', isScannerOpen);
+        if (barcode && isScannerOpen) {
+            console.log('[BarcodeDebug] Barcode detected in Zustand store:', barcode);
+            handleUniqueBarcodeScans(barcode);
+        }
+    }, [barcode, isScannerOpen]); // It runs whenever a new barcode is scanned
 
     async function fetchDeliveryNote() {
         try {
             setLoadingController({ show: true, text: 'Loading Delivery Note..' });
-            
             const storedDeliveryNotes = localStorage.getItem('mockDeliveryNotes');
-            let deliveryNotesData;
-            
-            if (storedDeliveryNotes) {
-                deliveryNotesData = JSON.parse(storedDeliveryNotes);
-            } else {
+            let deliveryNotesData = storedDeliveryNotes ? JSON.parse(storedDeliveryNotes) : mockDeliveryNotes;
+            if (!storedDeliveryNotes) {
                 localStorage.setItem('mockDeliveryNotes', JSON.stringify(mockDeliveryNotes));
-                deliveryNotesData = mockDeliveryNotes;
             }
-            
             const mockDeliveryNote = deliveryNotesData.find(note => note.name === deliveryNoteId);
             if (mockDeliveryNote) {
                 const updatedNote = calculatePackedQuantity(mockDeliveryNote);
@@ -62,300 +62,177 @@ export default function NewPackingSlipPage() {
         } catch (err) {
             setError('Failed to fetch delivery note. Please try again.');
         } finally {
-            setLoadingController({ show: false, text: 'Loading Delivery Note..' });
+            setLoadingController({ show: false, text: '' });
             setLoading(false);
         }
     }
 
-    // Handle barcode input
-    function handleBarcodeChange(event) {
-        setBarcodeInput(event.target.value.trim());
-    }
-
-    // Handle barcode submission
+    // This is the main logic function that processes the scanned barcode.
     async function handleBarcodeSubmit(barcodeValue) {
-        if (!barcodeValue || !deliveryNote) return;
-
-        try {
-            setLoadingController({ show: true, text: 'Loading' });
-            
-            const matchingItem = deliveryNote.items.find(item =>
-                item.barcode === String(barcodeValue).slice(0, 12)
-            );
-
-            if (!matchingItem) {
-                setScanningController({ show: true, text: 'No matching item found for this barcode!', status: 'failure' });
-                return;
-            }
-
-            const remaining = getRemainingQuantity(matchingItem);
-            const currentPacked = packedQty[matchingItem.item_name] || 0;
-            // Only allow packing up to the remaining qty for this slip
-            if (remaining - currentPacked <= 0) {
-                setScanningController({ show: true, text: 'All items with this barcode are already packed for this slip!', status: 'alert' });
-                return;
-            }
-
-            // Add item to selection if not already selected
-            if (!selectedItems.includes(matchingItem.item_name)) {
-                setSelectedItems(prev => [...prev, matchingItem.item_name]);
-            }
-
-            // Increment packed qty for this slip
-            setPackedQty(prev => {
-                const newQty = (prev[matchingItem.item_name] || 0) + 1;
-                return { ...prev, [matchingItem.item_name]: newQty };
-            });
-
-            setScanningController({ show: true, text: `Added ${matchingItem.item_name} to selection`, status: 'success' });
-
-        } catch (err) {
-            console.error('Error processing barcode:', err);
-            setScanningController({ show: true, text: 'Failed to process barcode', status: 'failure' });
-        } finally {
-            setLoadingController({ show: false, text: 'Loading' });
-        }
-    }
-
-    // Toggle scanning mode
-    const toggleScanning = () => {
-        if (!selectedVideoDevice) {
-            alert('Please select a Video Device');
+        console.log('[BarcodeDebug] handleBarcodeSubmit called with value:', barcodeValue);
+        if (!barcodeValue || !deliveryNote) {
+            console.log('[BarcodeDebug] No barcode value or deliveryNote is null.');
             return;
         }
-        setScanning(!scanning);
-        setBarcode('');
 
-        if (scanning) {
-            currentProcessingInfo.current.status = 'idle';
-            stopScanning();
+        const matchingItem = deliveryNote.items.find(item => item.barcode === String(barcodeValue).slice(0, 12));
+        if (matchingItem) {
+            console.log('[BarcodeDebug] Matching item found:', matchingItem.item_code, matchingItem.item_name);
         } else {
-            startScanning('videoElement', selectedVideoDevice);
+            console.log('[BarcodeDebug] No matching item for barcode:', barcodeValue);
+        }
+
+        if (!matchingItem) {
+            setScanningController({ show: true, text: 'Item not found!', status: 'failure' });
+            return;
+        }
+
+        const remainingInDN = getRemainingQuantity(matchingItem);
+        const packedInThisSlip = packedQty[matchingItem.item_name] || 0;
+
+        console.log('[BarcodeDebug] Remaining in DN:', remainingInDN, 'Packed in this slip:', packedInThisSlip);
+
+        if (packedInThisSlip >= remainingInDN) {
+            setScanningController({ show: true, text: 'All required units packed', status: 'alert' });
+            return;
+        }
+
+        // If checks pass, increment the quantity for the item
+        incrementQty(matchingItem.item_name);
+        setScanningController({ show: true, text: `Packed ${matchingItem.item_code}`, status: 'success' });
+    }
+
+    // This gatekeeper function prevents a single scan from being processed multiple times.
+    function handleUniqueBarcodeScans(barcodeValue) {
+        console.log('[BarcodeDebug] handleUniqueBarcodeScans called with value:', barcodeValue);
+        if (currentProcessingInfo.current.status === 'processing') {
+            console.log('[BarcodeDebug] Already processing, skipping.');
+            return;
+        }
+        currentProcessingInfo.current.status = 'processing';
+        handleBarcodeSubmit(barcodeValue);
+
+        // Reset the barcode in the global store so we can detect the next scan
+        setBarcode('');
+    }
+
+    // --- UI HANDLERS & ACTIONS ---
+    const incrementQty = (itemName) => {
+        setPackedQty(prev => ({ ...prev, [itemName]: (prev[itemName] || 0) + 1 }));
+    };
+
+    const decrementQty = (itemName) => {
+        setPackedQty(prev => ({ ...prev, [itemName]: Math.max(0, (prev[itemName] || 0) - 1) }));
+    };
+
+    const openScanner = async () => {
+        try {
+            const devices = await getVideoDevices();
+            console.log('[BarcodeDebug] Video devices found:', devices);
+            if (devices.length === 0) {
+                alert('No camera devices found.');
+                return;
+            }
+            setVideoDevices(devices);
+            const rearCamera = devices.find(d => d.label.toLowerCase().includes('back')) || devices[0];
+            setSelectedVideoDevice(rearCamera.deviceId);
+            setIsScannerOpen(true);
+        } catch (e) {
+            console.log('[BarcodeDebug] Error getting video devices:', e);
+            alert('Camera permission is required to use the scanner.');
         }
     };
 
-    function handleUniqueBarcodeScans(barcodeValue) {
-        if (!barcodeValue || currentProcessingInfo.current.status === 'processing' || !deliveryNote) {
-            return;
+    useEffect(() => {
+        console.log('[BarcodeDebug] useEffect: isScannerOpen:', isScannerOpen, 'selectedVideoDevice:', selectedVideoDevice);
+        if (isScannerOpen && selectedVideoDevice) {
+            console.log('[BarcodeDebug] Starting scanning on videoElement with device:', selectedVideoDevice);
+            startScanning('videoElement', selectedVideoDevice);
+        } else {
+            console.log('[BarcodeDebug] Stopping scanning');
+            stopScanning();
         }
-        currentProcessingInfo.current.barcodeValue = barcodeValue;
-        currentProcessingInfo.current.status = 'processing';
-        handleBarcodeSubmit(barcodeValue);
-    }
+        return () => {
+            console.log('[BarcodeDebug] Cleanup: stopScanning');
+            stopScanning();
+        };
+    }, [isScannerOpen, selectedVideoDevice]);
 
-    // Generate automatic packing slip name
-    function generatePackingSlipName() {
-        const existingSlips = deliveryNote.packing_slips || [];
-        
-        // Find the highest existing PAC-XXX number
-        let maxIndex = 0;
-        existingSlips.forEach(slip => {
-            const match = slip.name.match(/^PAC-(\d+)$/);
-            if (match) {
-                const index = parseInt(match[1]);
-                if (index > maxIndex) {
-                    maxIndex = index;
-                }
-            }
-        });
-        
-        // Generate next sequential number
-        const nextIndex = maxIndex + 1;
-        return `PAC-${String(nextIndex).padStart(3, '0')}`;
-    }
-
-    // Create packing slip
     function createPackingSlip() {
+        const selectedItems = Object.keys(packedQty).filter(key => packedQty[key] > 0);
         if (selectedItems.length === 0) {
-            alert('Please select at least one item');
+            alert('Scan at least one item to create a slip.');
             return;
         }
-
-        const packingSlipName = generatePackingSlipName();
-
-        // Create new packing slip
+        const packingSlipName = `PAC-${String((deliveryNote.packing_slips?.length || 0) + 1).padStart(3, '0')}`;
         const newPackingSlip = {
             name: packingSlipName,
             delivery_note: deliveryNoteId,
             created_date: new Date().toISOString(),
             items: selectedItems.map(itemName => {
                 const item = deliveryNote.items.find(i => i.item_name === itemName);
-                return {
-                    item_name: itemName,
-                    item_code: item.item_code,
-                    packed_qty: packedQty[itemName] || 0,
-                    total_req_qty: item.total_req_qty,
-                    barcode: item.barcode
-                };
+                return { ...item, packed_qty: packedQty[itemName] };
             })
         };
-
-        // Update localStorage
-        const storedDeliveryNotes = JSON.parse(localStorage.getItem('mockDeliveryNotes'));
-        const updatedDeliveryNotes = storedDeliveryNotes.map(note => {
-            if (note.name === deliveryNoteId) {
-                return {
-                    ...note,
-                    packing_slips: [...note.packing_slips, newPackingSlip]
-                };
-            }
-            return note;
-        });
-        
-        localStorage.setItem('mockDeliveryNotes', JSON.stringify(updatedDeliveryNotes));
-
-        // Navigate to the new packing slip
+        const storedNotes = JSON.parse(localStorage.getItem('mockDeliveryNotes'));
+        const updatedNotes = storedNotes.map(note => 
+            note.name === deliveryNoteId 
+            ? { ...note, packing_slips: [...note.packing_slips, newPackingSlip] }
+            : note
+        );
+        localStorage.setItem('mockDeliveryNotes', JSON.stringify(updatedNotes));
         router.push(`/packaging/${deliveryNoteId}/${packingSlipName}`);
     }
 
-    if (error) {
-        return <div className="flex items-center justify-center min-h-screen text-red-600 bg-red-50 p-4 rounded-lg">{error}</div>;
-    }
-    if (loading) {
-        return <div className="flex items-center justify-center min-h-screen text-gray-600">Loading delivery note...</div>;
-    }
+    // --- LOADING / ERROR STATES ---
+    if (error) return <div className="flex items-center justify-center h-screen text-red-500 p-4">{error}</div>;
+    if (loading || !deliveryNote) return <div className="flex items-center justify-center h-screen text-gray-500">Loading...</div>;
 
+    const totalPackedInSlip = Object.values(packedQty).reduce((sum, qty) => sum + qty, 0);
+
+    // --- ✨ THE CLEAN UI YOU LIKED ✨ ---
     return (
-        <div className="max-w-6xl mx-auto px-4 py-8">
-            <Link href={`/packaging/${deliveryNoteId}`}><ArrowLeft size={30} className='mb-2 rounded-md active:bg-gray-300'></ArrowLeft></Link>
-            <h1 className="text-2xl font-bold mb-4">Create New Packing Slip</h1>
-            <p className="text-gray-600 mb-6">Delivery Note: {deliveryNoteId} - Customer: {deliveryNote.customer}</p>
+        <div className="bg-gray-100 min-h-screen pb-28">
+            {/* --- SCANNER MODAL --- */}
+            {isScannerOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex flex-col items-center justify-center p-4">
+                    <div className="bg-white rounded-xl w-full max-w-md p-4 space-y-4">
+                        <div className="flex justify-between items-center"><h3 className="font-bold text-lg">Scan Barcode</h3><button onClick={() => setIsScannerOpen(false)} className="p-2 rounded-full hover:bg-gray-200"><X size={24} /></button></div>
+                        <div className="relative w-full aspect-square bg-gray-900 rounded-lg overflow-hidden"><video id="videoElement" className="w-full h-full object-cover"></video><div className="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 animate-ping"></div></div>
+                        <div className="flex items-center space-x-2"><Camera size={20} className="text-gray-500" /><select value={selectedVideoDevice} onChange={(e) => setSelectedVideoDevice(e.target.value)} className="w-full bg-gray-100 border-gray-300 border rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">{videoDevices.map((d) => (<option key={d.deviceId} value={d.deviceId}>{d.label}</option>))}</select></div>
+                    </div>
+                </div>
+            )}
             
-            {/* Camera Screen */}
-            {
-                <div className={`${scanning ? '' : 'hidden'} overflow-scroll fixed inset-0 flex flex-col items-center justify-center gap-10 bg-gray-50 z-50`}>
-                    <video id="videoElement" className="max-w-screen w-xs h-xs object-cover rounded-lg shadow-md"></video>
-
-                    <div className='flex flex-col items-center justify-center gap-5'>
-                        <div className='bg-gray-300 px-3 py-3 rounded-sm flex flex-row items-center justify-center gap-5 shadow-md'>
-                            <input
-                                type="text"
-                                value={barcodeInput}
-                                onChange={handleBarcodeChange}
-                                placeholder="Scan or enter barcode"
-                                className="bg-gray-100 flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                disabled={!scanning}
-                            />
-                            <button
-                                onClick={() => handleBarcodeSubmit(barcodeInput)}
-                                className="px-4 py-2 bg-green-500 text-white font-bold rounded-md hover:bg-green-600 transition-colors"
-                            >
-                                Process
-                            </button>
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={toggleScanning}
-                            className="px-4 py-2 bg-blue-500 text-white font-bold rounded-md hover:bg-blue-600 transition-colors"
-                        >
-                            Stop Scanning
-                        </button>
-                    </div>
-                </div>
-            }
-
-            {/* Barcode scanning section */}
-            <div className="barcode-section bg-white p-6 rounded-lg shadow-md mb-8">
-                {/* <h2 className="text-xl font-semibold mb-4">Barcode Scanning</h2> */}
-                <div className="flex flex-col gap-2">
-                    <div className="flex flex-col gap-4">
-
-                        <select
-                            id='videoSelect'
-                            onClick={(event) => {
-                                event.preventDefault();
-                                if (videoDevices.length) return;
-                                
-                                getVideoDevices().then(devices => {
-                                    setVideoDevices(devices);
-                                }).catch((e) => {
-                                    alert('Camera Permission is required!');
-                                });
-                            }}
-                            onChange={(e) => {
-                                setSelectedVideoDevice(e.target.value);
-                            }}
-                            className="px-4 py-2 text-xl border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                        >
-                            <option value="">Selected Video-Default</option>
-                            {videoDevices.map((device) => (
-                                <option key={device.deviceId} value={device.deviceId}>
-                                    {device.label}
-                                </option>
-                            ))}
-                        </select>
-
-                        <button
-                            type="button"
-                            onClick={toggleScanning}
-                            className="px-4 py-2 bg-blue-500 text-white text-xl font-bold rounded-md hover:bg-blue-600 transition-colors"
-                        >
-                            {scanning ? 'Stop Scanning' : 'Start Scanning'}
-                        </button>
-                    </div>
+            {/* --- MAIN PAGE CONTENT --- */}
+            <div className="max-w-3xl mx-auto p-4">
+                <header className="flex items-center mb-4"><Link href={`/packaging/${deliveryNoteId}`} className="p-2 mr-2 rounded-full hover:bg-gray-200"><ArrowLeft size={24} /></Link><h1 className="text-xl font-bold text-gray-800">New Packing Slip</h1></header>
+                <div className="space-y-3">
+                    {deliveryNote.items.map(item => {
+                        const remainingInDN = getRemainingQuantity(item);
+                        const packedInThisSlip = packedQty[item.item_name] || 0;
+                        const isCompleted = remainingInDN <= 0;
+                        return (
+                            <div key={item.item_name} className={`bg-white p-3 rounded-lg shadow-sm border ${packedInThisSlip > 0 ? 'border-blue-500' : 'border-transparent'}`}>
+                                <p className="font-bold text-gray-800">{item.item_code}</p>
+                                <div className="flex justify-between items-center mt-2">
+                                    <div className="text-sm text-gray-500">Required: <span className="font-semibold text-gray-700">{remainingInDN}</span>{isCompleted && <CheckSquare size={16} className="inline ml-1 text-green-600" />}</div>
+                                    <div className="flex items-center gap-3 bg-gray-100 rounded-full"><button onClick={() => decrementQty(item.item_name)} className="px-3 py-1 text-blue-600 font-bold text-lg active:bg-gray-300 rounded-full">-</button><span className="font-bold text-lg text-gray-900 w-6 text-center">{packedInThisSlip}</span><button onClick={() => incrementQty(item.item_name)} disabled={packedInThisSlip >= remainingInDN} className="px-3 py-1 text-blue-600 font-bold text-lg active:bg-gray-300 rounded-full disabled:text-gray-300">+</button></div>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
 
-            {/* Packing Slip Details */}
-            <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-                <h2 className="text-xl font-semibold mb-4">Packing Slip Details</h2>
-                <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Packing Slip Name
-                    </label>
-                    <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-gray-700">
-                        {generatePackingSlipName()}
-                    </div>
-                    <p className="text-sm text-gray-500 mt-1">Name will be automatically generated</p>
+            {/* --- STICKY FOOTER FOR ACTIONS --- */}
+            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 shadow-top">
+                <div className="max-w-3xl mx-auto flex gap-4">
+                    <button onClick={openScanner} className="w-1/3 flex-shrink-0 flex flex-col items-center justify-center p-2 bg-white text-blue-600 border-2 border-blue-600 font-semibold rounded-lg hover:bg-blue-50 active:scale-95 transition-all"><ScanLine size={24} /><span className="text-xs mt-1">Scan</span></button>
+                    <button onClick={createPackingSlip} disabled={totalPackedInSlip === 0} className="w-2/3 flex-grow p-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 active:scale-95 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed">Create Slip ({totalPackedInSlip} {totalPackedInSlip === 1 ? 'Item' : 'Items'})</button>
                 </div>
             </div>
-
-            <div className="overflow-x-auto">
-                <p className="text-gray-600 mb-2">Items:</p>
-                <table className="w-full border-collapse">
-                    <thead>
-                        <tr className="bg-gray-50">
-                            <th className="px-4 py-3 text-center border-b">Item Code</th>
-                            <th className="px-4 py-3 text-center border-b">Packed Qty (This Slip)</th>
-                            <th className="px-4 py-3 text-center border-b">Remaining Qty (Delivery Note)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {deliveryNote?.items?.map(item => {
-                            const remaining = getRemainingQuantity(item);
-                            const isSelected = selectedItems.includes(item.item_name);
-                            const packedThisSlip = packedQty[item.item_name] || 0;
-                            return (
-                                <tr key={item.item_name} className={`${remaining === 0 ? 'bg-green-300' : ''} ${isSelected ? 'bg-blue-50' : ''}`}>
-                                    <td className="px-4 py-3 text-center border-b">{item.item_code || '-'}</td>
-                                    <td className="px-4 py-3 text-center border-b">{packedQty[item.item_name] || 0}</td>
-                                    <td className="px-4 py-3 text-center border-b">{remaining - packedThisSlip >= 0 ? remaining - packedThisSlip : 0}</td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-4">
-                <button
-                    onClick={createPackingSlip}
-                    disabled={selectedItems.length === 0}
-                    className="px-6 py-3 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                >
-                    Create Packing Slip
-                </button>
-                <Link
-                    href={`/packaging/${deliveryNoteId}`}
-                    className="px-6 py-3 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 transition-colors"
-                >
-                    Cancel
-                </Link>
-            </div>
-
-            <IntermidScanningController></IntermidScanningController>
+            <IntermidScanningController />
         </div>
     );
 }

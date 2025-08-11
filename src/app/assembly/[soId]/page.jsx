@@ -2,379 +2,214 @@
 
 import { useState, useEffect, useContext } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getselectedVideoDevices, getVideoDevices, reader, startScanning, stopScanning } from '../../../services/barcodeReader';
+import { getVideoDevices, startScanning, stopScanning } from '../../../services/barcodeReader';
 import { GlobalContext } from '../../../Context/globalContext';
 import useBarcode from '../../../Stores/barcodeStore';
 import IntermidScanningController from '../../../Components/IntermidScanningController';
-import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+// Add new icons for a clearer interface
+import { ArrowLeft, X, ScanLine, Camera, Check, MapPin } from 'lucide-react';
 import { mockPickLists } from '../mockData';
 
-export default function SalesOrderDetailPage() {
-    // State variables
+export default function PickListPage() {
+    // --- STATE MANAGEMENT ---
+    const [pickList, setPickList] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [barcodeInput, setBarcodeInput] = useState(''); // This is the barcode input
-    const [selectedVideoDevice, setSelectedVideoDevice] = useState('')
-    const [videoDevices, setVideoDevices] = useState([])
-    const [pickList, setPickList] = useState({});
-    // const [currentProcessingInfo, setcurrentProcessingInfo] = useState(''); // This is the barcode that is currently being processed
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
+    const [videoDevices, setVideoDevices] = useState([]);
+    const [selectedVideoDevice, setSelectedVideoDevice] = useState('');
 
-    const barcode = useBarcode((state) => state.barcode)
-    const setBarcode = useBarcode((state) => state.setBarcode)
-
-    // Get the sales order ID from the URL
     const params = useParams();
-    const salesOrderId = params.soId;
+    const pickListId = params.soId; // The route uses soId, but it's for the pick list
+    const { setLoadingController, setScanningController, currentProcessingInfo } = useContext(GlobalContext);
+    
+    const barcode = useBarcode((state) => state.barcode);
+    const setBarcode = useBarcode((state) => state.setBarcode);
 
-    const router = useRouter()
-    const { setLoadingController, currentProcessingInfo, setScanningController, scanning, setScanning } = useContext(GlobalContext)
-
-    // Your ERPNext API token
-    // const token = '708ce20d2f35906:f9a7dae3b071cc1';
-
-    // Fetch sales order when component mounts
+    // --- DATA FETCHING & INITIALIZATION ---
     useEffect(() => {
         fetchPickList();
-    }, [salesOrderId]);
+    }, [pickListId]);
 
+    // This hook triggers the processing when a new barcode is detected
     useEffect(() => {
-        if (!barcode) return;
-        handleUniqueBarcodeScans(barcode)
-    }, [barcode])
-
-    useEffect(() => {
-        fetchPickList();
-    }, [salesOrderId]);
-
-    // useEffect(() => {
-    //     document.addEventListener('barcode', handleUniqueBarcodeScans);
-    //     return () => document.removeEventListener('barcode', handleUniqueBarcodeScans);
-    // }, []);
+        if (barcode && isScannerOpen) {
+            handleUniqueBarcodeScans(barcode);
+        }
+    }, [barcode, isScannerOpen]);
 
     async function fetchPickList() {
         try {
-            setLoadingController({ show: true, text: 'Loading Pick List..' })
-            
-            // Commented out API fetching for demo
-            // const response = await fetch(`/api/pick-lists/${salesOrderId}`, {
-            //     credentials: 'include',
-            //     headers: {
-            //         'Accept': 'application/json',
-            //     },
-            // });
-            // if (!response.ok) {
-            //     throw new Error('Failed to fetch pick list');
-            // }
-            // const data = await response.json();
-            // setPickList(data.data);
-            
-            // Using mock data with localStorage for persistence
+            setLoadingController({ show: true, text: 'Loading Pick List...' });
             const storedPickLists = localStorage.getItem('mockPickLists');
-            let pickListsData;
-            
-            if (storedPickLists) {
-                pickListsData = JSON.parse(storedPickLists);
-            } else {
-                // Initialize localStorage if it doesn't exist
+            let pickListsData = storedPickLists ? JSON.parse(storedPickLists) : mockPickLists;
+            if (!storedPickLists) {
                 localStorage.setItem('mockPickLists', JSON.stringify(mockPickLists));
-                pickListsData = mockPickLists;
             }
-            
-            const mockPickList = pickListsData.find(list => list.name === salesOrderId);
+            const mockPickList = pickListsData.find(list => list.name === pickListId);
             if (mockPickList) {
+                // Sort locations to show incomplete ones first
+                mockPickList.locations.sort((a, b) => {
+                    const aComplete = (a.picked_qty || 0) >= a.qty;
+                    const bComplete = (b.picked_qty || 0) >= b.qty;
+                    return aComplete - bComplete;
+                });
                 setPickList(mockPickList);
             } else {
                 setError('Pick list not found');
             }
         } catch (err) {
             setError('Failed to fetch pick list. Please try again.');
-            console.error('Error:', err);
         } finally {
-            setLoadingController({ show: false, text: 'Loading Pick List..' })
+            setLoadingController({ show: false, text: '' });
             setLoading(false);
         }
     }
 
-    // Handle barcode input
-    function handleBarcodeChange(event) {
-        setBarcodeInput((event.target.value).trim());
-    }
-
-    // Handle barcode submission
+    // --- YOUR CORE BARCODE LOGIC - INTEGRATED ---
     async function handleBarcodeSubmit(barcodeValue) {
-
-        console.log('here', barcodeValue, pickList)
         if (!barcodeValue || !pickList) return;
 
-        try {
-            setLoadingController({ show: true, text: 'Loading' })
-            
-            // Changed from item_code to barcode
-            const matchingLocations = pickList.locations.filter(location =>
-                location.barcode == String(barcodeValue).slice(0, 12)
-            );
+        const matchingLocations = pickList.locations.filter(loc => loc.barcode == String(barcodeValue).slice(0, 12));
 
-            if (matchingLocations.length === 0) {
-                setScanningController({ show: true, text: `No matching Item found for the barcode!`, status: 'failure' })
-                return;
-            }
-
-            const allFullyPicked = matchingLocations.every(location =>
-                location.qty == location.picked_qty
-            );
-
-            if (allFullyPicked) {
-                setScanningController({ show: true, text: `All items with this barcode are already picked!`, status: 'alert' })
-                return;
-            }
-
-            const locationToPick = matchingLocations.find(location =>
-                (location.picked_qty || 0) < location.qty
-            );
-
-            if (locationToPick) {
-                const newPickedQty = (locationToPick.picked_qty || 0) + 1;
-
-                const updatedLocations = pickList.locations.map((l)=>{
-                    if(l.name == locationToPick.name){
-                        return {
-                            ...l,
-                            picked_qty: newPickedQty
-                        }
-                    }
-                    return l;
-                })
-
-                // Commented out API update for demo
-                // const updateResponse = await fetch(`/api/pick-lists/${pickList.name}`, {
-                //     method: 'PUT',
-                //     credentials: 'include',
-                //     headers: {
-                //         'Accept': 'application/json',
-                //         'Content-Type': 'application/json',
-                //     },
-                //     body: JSON.stringify({
-                //         locations: updatedLocations
-                //     })
-                // });
-
-                // if (!updateResponse.ok) {
-                //     throw new Error('Failed to update picked quantity');
-                // }
-
-                setPickList(p => {
-                    const newLocations = p.locations.map(location => {
-                        if (location.name === locationToPick.name) {
-                            return {
-                                ...location,
-                                picked_qty: newPickedQty
-                            };
-                        }
-                        return location;
-                    });
-                    return { ...p, locations: newLocations };
-                })
-                
-                // Update localStorage to persist the changes
-                const storedPickLists = JSON.parse(localStorage.getItem('mockPickLists') || '[]');
-                const updatedPickLists = storedPickLists.map(list => {
-                    if (list.name === pickList.name) {
-                        return {
-                            ...list,
-                            locations: list.locations.map(location => {
-                                if (location.name === locationToPick.name) {
-                                    return {
-                                        ...location,
-                                        picked_qty: newPickedQty
-                                    };
-                                }
-                                return location;
-                            })
-                        };
-                    }
-                    return list;
-                });
-                localStorage.setItem('mockPickLists', JSON.stringify(updatedPickLists));
-                
-                setScanningController({ show: true, text: `Successfully picked ${locationToPick.item_code}`, status: 'success' })
-            }
-
-            // // Clear barcode
-            // setBarcode('');
-
-
-        } catch (err) {
-            console.error('Error processing barcode:', err);
-            setScanningController({ show: true, text: `Failed to Process`, status: 'failure' })
-        } finally {
-
-            // currentProcessingInfo.current.status = 'idle'
-            setLoadingController({ show: false, text: 'Loading' })
-            // setBarcode('')
-        }
-    }
-
-    // Toggle scanning mode
-    const toggleScanning = () => {
-        if (!selectedVideoDevice) {
-            alert('Please select a Video Device')
+        if (matchingLocations.length === 0) {
+            setScanningController({ show: true, text: 'No item found for this barcode!', status: 'failure' });
             return;
         }
-        setScanning(!scanning);
-        setBarcode('');
 
-        if (scanning) {
-            currentProcessingInfo.current.status = 'idle'
-            stopScanning();
-        } else {
-            //reader.start();
-            startScanning('videoElement', selectedVideoDevice);
+        const locationToPick = matchingLocations.find(loc => (loc.picked_qty || 0) < loc.qty);
+
+        if (!locationToPick) {
+            setScanningController({ show: true, text: 'All units for this item are already picked.', status: 'alert' });
+            return;
         }
 
+        const newPickedQty = (locationToPick.picked_qty || 0) + 1;
+        
+        // Create the updated list for both state and localStorage
+        const updatedPickLists = JSON.parse(localStorage.getItem('mockPickLists')).map(list => {
+            if (list.name === pickListId) {
+                const updatedLocations = list.locations.map(loc => 
+                    loc.name === locationToPick.name ? { ...loc, picked_qty: newPickedQty } : loc
+                );
+                return { ...list, locations: updatedLocations };
+            }
+            return list;
+        });
 
+        // Update localStorage first
+        localStorage.setItem('mockPickLists', JSON.stringify(updatedPickLists));
+
+        // Then update the local state from the same source of truth
+        const updatedListForState = updatedPickLists.find(list => list.name === pickListId);
+        updatedListForState.locations.sort((a, b) => {
+            const aComplete = (a.picked_qty || 0) >= a.qty;
+            const bComplete = (b.picked_qty || 0) >= b.qty;
+            return aComplete - bComplete;
+        });
+        setPickList(updatedListForState);
+
+        setScanningController({ show: true, text: `Picked ${locationToPick.item_code}`, status: 'success' });
     }
 
     function handleUniqueBarcodeScans(barcodeValue) {
-        console.log('got itt:', barcodeValue, 'currentProcessingInfo:', currentProcessingInfo.current);
-        if (!barcodeValue || currentProcessingInfo.current.status === 'processing' || !pickList) {
-            return;
-        }
-        currentProcessingInfo.current.barcodeValue = barcodeValue;
+        if (currentProcessingInfo.current.status === 'processing') return;
         currentProcessingInfo.current.status = 'processing';
         handleBarcodeSubmit(barcodeValue);
+        setBarcode(''); // Reset barcode for next scan
     }
 
-    // Show loading state
-    // if (loading) {
-    //     return <div className="loading">Loading sales order...</div>;
-    // }
+    // --- UI ACTIONS ---
+    const openScanner = async () => {
+        try {
+            const devices = await getVideoDevices();
+            if (devices.length === 0) { alert('No camera devices found.'); return; }
+            setVideoDevices(devices);
+            const rearCamera = devices.find(d => d.label.toLowerCase().includes('back')) || devices[0];
+            setSelectedVideoDevice(rearCamera.deviceId);
+            setIsScannerOpen(true);
+        } catch (e) {
+            alert('Camera permission is required.');
+        }
+    };
 
-    // // Show error state
-    // if (error) {
-    //     return <div className="error">{error}</div>;
-    // }
+    useEffect(() => {
+        if (isScannerOpen && selectedVideoDevice) {
+            startScanning('videoElement', selectedVideoDevice);
+        } else {
+            stopScanning();
+        }
+        return () => stopScanning();
+    }, [isScannerOpen, selectedVideoDevice]);
 
-    // Show error if sales order is not found
-    if (!pickList && !loading) {
-        return <div className="error">Pick list not found</div>;
-    }
+    // --- RENDER LOGIC ---
+    if (error) return <div className="flex items-center justify-center h-screen text-red-500 p-4">{error}</div>;
+    if (loading || !pickList) return <div className="flex items-center justify-center h-screen text-gray-500">Loading...</div>;
+
+    const isPickListComplete = pickList.locations?.every(loc => (loc.picked_qty || 0) >= loc.qty);
 
     return (
-        <div className="max-w-6xl mx-auto px-4 py-8">
-           <Link href="/assembly"><ArrowLeft size={30} className='mb-2 rounded-md active:bg-gray-300'></ArrowLeft></Link> 
-            <h1 className="text-2xl font-bold mb-2">Pick List Locations - {pickList.name}</h1>
-            <p className="text-gray-600 mb-6">Customer: {pickList.customer || 'Demo Customer'}</p>
-            <div className="header flex flex-col gap-5 mb-5">
+        <div className="bg-gray-100 min-h-screen pb-28">
+            {/* --- SCANNER MODAL --- */}
+            {isScannerOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex flex-col items-center justify-center p-4">
+                    <div className="bg-white rounded-xl w-full max-w-md p-4 space-y-4">
+                        <div className="flex justify-between items-center"><h3 className="font-bold text-lg">Scan Item Barcode</h3><button onClick={() => setIsScannerOpen(false)} className="p-2 rounded-full hover:bg-gray-200"><X size={24} /></button></div>
+                        <div className="relative w-full aspect-square bg-gray-900 rounded-lg overflow-hidden"><video id="videoElement" className="w-full h-full object-cover"></video><div className="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 animate-ping"></div></div>
+                        <div className="flex items-center space-x-2"><Camera size={20} className="text-gray-500" /><select value={selectedVideoDevice} onChange={(e) => setSelectedVideoDevice(e.target.value)} className="w-full bg-gray-100 border-gray-300 border rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">{videoDevices.map((d) => (<option key={d.deviceId} value={d.deviceId}>{d.label}</option>))}</select></div>
+                    </div>
+                </div>
+            )}
 
-                {/* Camera Screen */}
-                {
-                    <div className={`${scanning ? '' : 'hidden'} overflow-scroll fixed inset-0 flex flex-col items-center justify-center gap-10 bg-gray-50`}>
+            {/* --- MAIN PAGE CONTENT --- */}
+            <div className="max-w-3xl mx-auto p-4">
+                <header className="flex items-center mb-4"><Link href="/assembly" className="p-2 mr-2 rounded-full hover:bg-gray-200"><ArrowLeft size={24} /></Link><div><h1 className="text-xl font-bold text-gray-800">{pickList.name}</h1><p className="text-sm text-gray-500">{pickList.customer}</p></div></header>
 
-                        <video id="videoElement" className="max-w-screen w-xs h-xs object-cover rounded-lg shadow-md"></video>
-
-                        <div className='flex flex-col items-center justify-center gap-5'>
-                            <div className='bg-gray-300 px-3 py-3 rounded-sm flex flex-row items-center justify-center gap-5 shadow-md'>
-                                <input
-                                    type="text"
-                                    value={barcodeInput}
-                                    onChange={handleBarcodeChange}
-                                    placeholder="Scan or enter barcode"
-                                    className="bg-gray-100 flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    disabled={!scanning}
-                                />
-                                <button
-                                    onClick={() => { handleBarcodeSubmit(barcodeInput) }}
-                                    className="px-4 py-2 bg-green-500 text-white font-bold rounded-md hover:bg-green-600 transition-colors"
-                                >
-                                    Process
-                                </button>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={toggleScanning}
-                                className="px-4 py-2 bg-blue-500 text-white font-bold rounded-md hover:bg-blue-600 transition-colors"
-                            >
-                                Stop Scanning
-                            </button>
-                        </div>
-
-                    </div>}
-
-
-                {/* Barcode scanning section */}
-                <div className="barcode-section bg-white p-6 rounded-lg shadow-md mb-8">
-                    {/* <h2 className="text-xl font-semibold mb-4">Barcode Scanning</h2> */}
-                    <div className="flex flex-col gap-2">
-                        <div className="flex flex-col gap-4">
-
-                            <select
-                                id='videoSelect'
-                                onClick={(event) => {
-                                    event.preventDefault()
-                                    if (videoDevices.length) return;
-                                    
-                                    getVideoDevices().then(devices => {
-                                        console.log(devices)
-                                        setVideoDevices(devices)
-                                    }
-                                    ).catch((e) => {
-                                        alert('Camera Permission is required!')
-                                        console.log('error while getting video devices', e)
-                                    })
-                                }}
-                                onChange={(e) => {
-                                    setSelectedVideoDevice(e.target.value)
-                                }}
-                                className="px-4 py-2 text-xl border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                            >
-                                <option value={""}>Selected Video-Default</option>
-                                {videoDevices.map((device) => {
-                                    return <option key={device.deviceId} value={device.deviceId}>
-                                        {device.label}
-                                    </option>
-                                })}
-                            </select>
-
-                            <button
-                                type="button"
-                                onClick={toggleScanning}
-                                className="px-4 py-2 bg-blue-500 text-white text-xl font-bold rounded-md hover:bg-blue-600 transition-colors"
-                            >
-                                {scanning ? 'Stop Scanning' : 'Start Scanning'}
-                            </button>
-                        </div>
+                {/* --- PICKING LOCATIONS LIST --- */}
+                <div>
+                    <h2 className="text-lg font-semibold text-gray-700 mb-2 px-1">Picking Locations</h2>
+                    <div className="space-y-3">
+                        {pickList.locations.map(loc => {
+                            const picked = loc.picked_qty || 0;
+                            const required = loc.qty;
+                            const progress = required > 0 ? (picked / required) * 100 : 100;
+                            const isItemComplete = picked >= required;
+                            return (
+                                <div key={loc.name} className={`bg-white rounded-lg shadow-md ${isItemComplete ? 'border-green-300 opacity-60' : ''}`}>
+                                    <div className="p-4">
+                                        <div className="flex justify-between items-start">
+                                            <p className="font-bold text-gray-800 text-lg">{loc.item_code}</p>
+                                            <div className="text-right">
+                                                <p className="font-bold text-xl text-blue-700">{picked} / {required}</p>
+                                                <p className="text-xs text-gray-500">Picked</p>
+                                            </div>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2"><div className={`h-2.5 rounded-full ${isItemComplete ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${progress}%` }}></div></div>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
 
-
-            <div className="overflow-x-auto">
-                <p className="text-gray-600 mb-2">Locations:</p>
-                <table className="w-full border-collapse">
-                    <thead>
-                        <tr className="bg-gray-50">
-                            <th className="px-4 py-3 text-left border-b">SKU ID</th>
-                            <th className="px-4 py-3 text-left border-b">Barcode</th>
-                            <th className="px-4 py-3 text-left border-b">Picked Quantity</th>
-                            <th className="px-4 py-3 text-left border-b">Required Quantity</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {pickList?.locations?.map(location => (
-                            <tr key={location.name} className={`${location.qty == location.picked_qty ? 'bg-green-300' : ''}`}>
-                                <td className="px-4 py-3 border-b">{location.item_code || '-'}</td>
-                                <td className="px-4 py-3 border-b">{location.barcode || '-'}</td>
-                                <td className="px-4 py-3 border-b">{location.picked_qty || 0}</td>
-                                <td className="px-4 py-3 border-b">{location.qty}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+            {/* --- STICKY FOOTER FOR ACTIONS --- */}
+            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 shadow-top">
+                <div className="max-w-3xl mx-auto">
+                    {isPickListComplete ? (
+                        <div className="w-full flex items-center justify-center gap-2 p-3 bg-green-600 text-white font-bold rounded-lg">
+                            <Check size={24} /> Pick List Complete
+                        </div>
+                    ) : (
+                        <button onClick={openScanner} className="w-full flex items-center justify-center gap-2 p-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 active:scale-95 transition-all">
+                            <ScanLine size={24} /> Scan Item to Pick
+                        </button>
+                    )}
+                </div>
             </div>
-
-            <IntermidScanningController></IntermidScanningController>
+            
+            <IntermidScanningController />
         </div>
     );
-} 
+}

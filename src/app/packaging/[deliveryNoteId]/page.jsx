@@ -4,7 +4,8 @@ import { useState, useEffect, useContext } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { GlobalContext } from '../../../Context/globalContext';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+// We'll add some icons for better visual cues
+import { ArrowLeft, Plus, Package, PackageCheck, ChevronRight } from 'lucide-react';
 import { mockDeliveryNotes, calculatePackedQuantity, getRemainingQuantity } from '../mockData';
 
 export default function DeliveryNotePackagingPage() {
@@ -17,27 +18,18 @@ export default function DeliveryNotePackagingPage() {
     const router = useRouter();
     const { setLoadingController } = useContext(GlobalContext);
 
+    // --- YOUR DATA FETCHING LOGIC (No changes needed here, it's great) ---
     useEffect(() => {
         async function fetchDeliveryNote() {
             try {
                 setLoadingController({ show: true, text: 'Loading Delivery Note..' })
                 
-                // Commented out API fetching for demo
-                // const response = await fetch(`/api/packing-slips?delivery_note=${deliveryNoteId}`);
-                // if (!response.ok) {
-                //     throw new Error('Failed to fetch packing slips');
-                // }
-                // const data = await response.json();
-                // setPackingSlips(data.data);
-                
-                // Using mock data with localStorage for persistence
                 const storedDeliveryNotes = localStorage.getItem('mockDeliveryNotes');
                 let deliveryNotesData;
                 
                 if (storedDeliveryNotes) {
                     deliveryNotesData = JSON.parse(storedDeliveryNotes);
                 } else {
-                    // Initialize localStorage if it doesn't exist
                     localStorage.setItem('mockDeliveryNotes', JSON.stringify(mockDeliveryNotes));
                     deliveryNotesData = mockDeliveryNotes;
                 }
@@ -60,100 +52,110 @@ export default function DeliveryNotePackagingPage() {
         fetchDeliveryNote();
     }, [deliveryNoteId, setLoadingController]);
 
-    // Create new packing slip
     function createNewPackingSlip() {
         router.push(`/packaging/${deliveryNoteId}/new`);
     }
 
+    // --- UI STATES (No changes needed) ---
     if (error) {
-        return <div className="flex items-center justify-center min-h-screen text-red-600 bg-red-50 p-4 rounded-lg">{error}</div>;
+        return <div className="flex items-center justify-center h-screen text-red-600 bg-red-50 p-4">{error}</div>;
     }
-    if (loading) {
-        return <div className="flex items-center justify-center min-h-screen text-gray-600">Loading delivery note...</div>;
+    if (loading || !deliveryNote) {
+        // Combined loading and !deliveryNote check for robustness
+        return <div className="flex items-center justify-center h-screen text-gray-500">Loading...</div>;
     }
 
+    // --- ✨ NEW & IMPROVED UI ✨ ---
     return (
-        <div className="max-w-6xl mx-auto px-4 py-8">
-            <Link href="/packaging"><ArrowLeft size={30} className='mb-2 rounded-md active:bg-gray-300'></ArrowLeft></Link>
-            <h1 className="text-2xl font-bold mb-4">Delivery Note: {deliveryNoteId}</h1>
-            <p className="text-gray-600 mb-6">Customer: {deliveryNote.customer}</p>
-            
-            {/* Items Overview */}
-            <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-                <h2 className="text-xl font-semibold mb-4">Items Overview</h2>
-                <table className="w-full border-collapse">
-                    <thead>
-                        <tr className="bg-gray-50">
-                            <th className="px-4 py-3 text-left border-b">Item Code</th>
-                            <th className="px-4 py-3 text-left border-b">Packed Quantity</th>
-                            <th className="px-4 py-3 text-left border-b">Total Required</th>
-                            <th className="px-4 py-3 text-left border-b">Remaining</th>
-                            <th className="px-4 py-3 text-left border-b">Barcode</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {deliveryNote.items.map(item => (
-                            <tr key={item.item_name} className={`${item.packed_qty >= item.total_req_qty ? 'bg-green-100' : ''}`}>
-                                <td className="px-4 py-3 border-b">{item.item_code}</td>
-                                <td className="px-4 py-3 border-b">{item.packed_qty}</td>
-                                <td className="px-4 py-3 border-b">{item.total_req_qty}</td>
-                                <td className="px-4 py-3 border-b">{getRemainingQuantity(item)}</td>
-                                <td className="px-4 py-3 border-b">{item.barcode}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+        // Use a light gray background for the whole page for better contrast
+        <div className="bg-gray-50 min-h-screen">
+            <div className="max-w-3xl mx-auto p-4">
 
-            {/* Packing Slips */}
-            <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold">Packing Slips</h2>
-                    <button
-                        onClick={createNewPackingSlip}
-                        className="px-4 py-2 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 transition-colors"
-                    >
-                        Create New Packing Slip
-                    </button>
+                {/* --- HEADER --- */}
+                <header className="flex items-center mb-4">
+                    <Link href="/packaging" className="p-2 mr-2 rounded-full hover:bg-gray-200">
+                        <ArrowLeft size={24} />
+                    </Link>
+                    <div>
+                        <h1 className="text-xl font-bold text-gray-800">DN: {deliveryNoteId}</h1>
+                        <p className="text-sm text-gray-500">Customer: {deliveryNote.customer}</p>
+                    </div>
+                </header>
+
+                {/* --- ITEMS OVERVIEW (Card-based) --- */}
+                <div className="mb-6">
+                    <h2 className="text-lg font-semibold text-gray-700 mb-2 px-1">Items Overview</h2>
+                    <div className="space-y-3">
+                        {deliveryNote.items.map(item => {
+                            const remaining = getRemainingQuantity(item);
+                            const isCompleted = remaining <= 0;
+                            return (
+                                <div key={item.item_code} className={`bg-white p-4 rounded-lg shadow-sm border ${isCompleted ? 'border-green-300' : 'border-gray-200'}`}>
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="font-bold text-gray-800">{item.item_code}</p>
+                                            <p className="text-xs text-gray-500">Barcode: {item.barcode}</p>
+                                        </div>
+                                        {isCompleted && <PackageCheck size={24} className="text-green-500" />}
+                                    </div>
+                                    <div className="mt-3 text-sm">
+                                        <div className="flex justify-between text-gray-600">
+                                            <span>Packed: <strong>{item.packed_qty}</strong></span>
+                                            <span>Required: <strong>{item.total_req_qty}</strong></span>
+                                        </div>
+                                        {/* Progress Bar for clear visual status */}
+                                        <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                                            <div
+                                                className={`h-2.5 rounded-full ${isCompleted ? 'bg-green-500' : 'bg-blue-500'}`}
+                                                style={{ width: `${(item.packed_qty / item.total_req_qty) * 100}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
-                
-                {packingSlips.length === 0 ? (
-                    <p className="text-gray-500 text-center py-8">No packing slips created yet. Click "Create New Packing Slip" to get started.</p>
-                ) : (
-                    <table className="w-full border-collapse">
-                        <thead>
-                            <tr className="bg-gray-50">
-                                <th className="px-4 py-3 text-left border-b">Packing Slip Name</th>
-                                <th className="px-4 py-3 text-left border-b">Items Count</th>
-                                <th className="px-4 py-3 text-left border-b">Total Packed</th>
-                                <th className="px-4 py-3 text-left border-b">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+
+                {/* --- PACKING SLIPS & ACTIONS (Card-based) --- */}
+                <div>
+                    <div className="flex justify-between items-center mb-2 px-1">
+                        <h2 className="text-lg font-semibold text-gray-700">Packing Slips</h2>
+                        <button
+                            onClick={createNewPackingSlip}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 active:scale-95 transition-all shadow"
+                        >
+                            <Plus size={18} />
+                            New Slip
+                        </button>
+                    </div>
+
+                    {packingSlips.length === 0 ? (
+                        <div className="text-center py-10 px-4 bg-white rounded-lg shadow-sm">
+                            <Package size={48} className="mx-auto text-gray-400" />
+                            <p className="mt-2 text-gray-500">No packing slips created yet.</p>
+                            <p className="text-sm text-gray-400">Tap 'New Slip' to start packing a box.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
                             {packingSlips.map(slip => (
-                                <tr key={slip.name} className="hover:bg-gray-100">
-                                    <td className="px-4 py-3 border-b">
-                                        <Link href={`/packaging/${deliveryNoteId}/${slip.name}`} className="text-blue-600 hover:underline">
-                                            {slip.name}
-                                        </Link>
-                                    </td>
-                                    <td className="px-4 py-3 border-b">{slip.items?.length || 0}</td>
-                                    <td className="px-4 py-3 border-b">
-                                        {slip.items?.reduce((total, item) => total + (item.packed_qty || 0), 0) || 0}
-                                    </td>
-                                    <td className="px-4 py-3 border-b">
-                                        <Link 
-                                            href={`/packaging/${deliveryNoteId}/${slip.name}`}
-                                            className="text-blue-600 hover:underline"
-                                        >
-                                            View Details
-                                        </Link>
-                                    </td>
-                                </tr>
+                                <Link
+                                    key={slip.name}
+                                    href={`/packaging/${deliveryNoteId}/${slip.name}`}
+                                    className="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm hover:bg-gray-100 active:scale-[0.98] transition-all border border-gray-200"
+                                >
+                                    <div>
+                                        <p className="font-bold text-blue-700">{slip.name}</p>
+                                        <p className="text-sm text-gray-600">
+                                            Total Packed: {slip.items?.reduce((total, item) => total + (item.packed_qty || 0), 0) || 0}
+                                        </p>
+                                    </div>
+                                    <ChevronRight size={24} className="text-gray-400" />
+                                </Link>
                             ))}
-                        </tbody>
-                    </table>
-                )}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

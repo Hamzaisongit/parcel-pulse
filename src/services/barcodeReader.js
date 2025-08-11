@@ -1,4 +1,5 @@
 import { BrowserMultiFormatReader } from "@zxing/browser";
+import useBarcode from "../Stores/barcodeStore"; // Import the Zustand store hook
 
 const reader = new BrowserMultiFormatReader();
 let readerInstance = null;
@@ -25,6 +26,7 @@ export const getVideoDevices = async () => {
  * Start scanning for barcodes using the specified video device
  * @param {string} videoElementId - ID of the video element to use for scanning
  * @param {string} [deviceId] - Optional device ID of the camera to use
+ * @param {function} [onBarcodeDetected] - Optional callback when barcode is detected
  * @returns {Promise<{stopScanning: Function}>} Object containing function to stop scanning
  */
 export const startScanning = async (videoElementId, deviceId = null, onBarcodeDetected = null) => {
@@ -39,23 +41,26 @@ export const startScanning = async (videoElementId, deviceId = null, onBarcodeDe
         }
 
         scanning = true;
-        
+
+        // Get the Zustand store setter for barcode
+        const setBarcode = useBarcode.getState().setBarcode;
+
         // Start scanning with the specified device
         readerInstance = await reader.decodeFromVideoDevice(
             deviceId,
             videoElement,
             (result, error) => {
                 if (result) {
-                    // const barcodeEvent = new CustomEvent("barcode", {
-                    //     detail: { barcode: result.getText() },
-                    //     bubbles: true,
-                    //     cancelable: true
-                    // });
-                    // document.dispatchEvent(barcodeEvent);
-                    if (onBarcodeDetected) {
-                        onBarcodeDetected(result.getText());
+                    const barcodeValue = result.getText();
+                    // Set the barcode in Zustand store
+                    if (typeof setBarcode === "function") {
+                        setBarcode(barcodeValue);
                     }
-                    console.log('Barcode detected:', result.getText());
+                    // Also call the callback if provided
+                    if (onBarcodeDetected) {
+                        onBarcodeDetected(barcodeValue);
+                    }
+                    console.log('Barcode detected:', barcodeValue);
                 }
                 if (error && error.name !== 'NotFoundException') {
                     console.error('Error during scanning:', error);
@@ -96,6 +101,3 @@ export const stopScanning = () => {
         videoElement = null;
     }
 };
-
-
-
