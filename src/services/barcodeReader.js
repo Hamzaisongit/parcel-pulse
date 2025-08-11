@@ -1,7 +1,4 @@
-import { BrowserMultiFormatReader } from "@zxing/browser"; 
-import useBarcode from "../Stores/barcodeStore";
-
-const setBarcode = useBarcode.getState().setBarcode;
+import { BrowserMultiFormatReader } from "@zxing/browser";
 
 const reader = new BrowserMultiFormatReader();
 let readerInstance = null;
@@ -30,7 +27,7 @@ export const getVideoDevices = async () => {
  * @param {string} [deviceId] - Optional device ID of the camera to use
  * @returns {Promise<{stopScanning: Function}>} Object containing function to stop scanning
  */
-export const startScanning = async (videoElementId, deviceId = null) => {
+export const startScanning = async (videoElementId, deviceId = null, onBarcodeDetected = null) => {
     if (scanning) {
         throw new Error('Scanning is already in progress');
     }
@@ -55,7 +52,9 @@ export const startScanning = async (videoElementId, deviceId = null) => {
                     //     cancelable: true
                     // });
                     // document.dispatchEvent(barcodeEvent);
-                    setBarcode(result.getText())
+                    if (onBarcodeDetected) {
+                        onBarcodeDetected(result.getText());
+                    }
                     console.log('Barcode detected:', result.getText());
                 }
                 if (error && error.name !== 'NotFoundException') {

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 export async function middleware(request) {
   const path = request.nextUrl.pathname
-
+  return NextResponse.next()
   // Allow PWA assets to pass through without authentication
   if (path === '/login' || 
       path.startsWith('/manifest') ||

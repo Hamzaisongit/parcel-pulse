@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { GlobalContext } from '../../Context/globalContext';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import { mockDeliveryNotes, calculatePackedQuantity } from './mockData';
 
 export default function PackagingPage() {
     // State variables
@@ -14,38 +15,60 @@ export default function PackagingPage() {
 
     const { setLoadingController } = useContext(GlobalContext)
 
-    // Fetch sales orders when component mounts
+    // Fetch delivery notes when component mounts
     useEffect(() => {
-        async function fetchDeliveryNotes() {
-            try {
-                setLoadingController({ show: true, text: 'Loading Delivery Notes..' })
-                const response = await fetch('/api/delivery-notes', {
-                    credentials: 'include',
-                    headers: {
-                        'Accept': 'application/json',
-                    },
-                });
-                if (!response.ok) {
-                    throw new Error('Failed to fetch delivery notes');
-                }
-                const data = await response.json();
-                setDeliveryNotes(data.data);
-                setLoadingController({ show: false, text: 'Loading Delivery Notes..' })
-            } catch (err) {
-                setError('Failed to fetch delivery notes. Please try again.');
-                setLoadingController({ show: false, text: 'Loading Delivery Notes..' })
-                console.error('Error:', err);
-            }
+        // Commented out API fetching for demo
+        // async function fetchDeliveryNotes() {
+        //     try {
+        //         setLoadingController({ show: true, text: 'Loading Delivery Notes..' })
+        //         const response = await fetch('/api/delivery-notes', {
+        //             credentials: 'include',
+        //             headers: {
+        //                 'Accept': 'application/json',
+        //             },
+        //         });
+        //         if (!response.ok) {
+        //             throw new Error('Failed to fetch delivery notes');
+        //         }
+        //         const data = await response.json();
+        //         setDeliveryNotes(data.data);
+        //         setLoadingController({ show: false, text: 'Loading Delivery Notes..' })
+        //     } catch (err) {
+        //         setError('Failed to fetch delivery notes. Please try again.');
+        //         setLoadingController({ show: false, text: 'Loading Delivery Notes..' })
+        //         console.error('Error:', err);
+        //     }
+        // }
+        // fetchDeliveryNotes();
+        
+        // Using mock data with localStorage for persistence
+        const storedDeliveryNotes = localStorage.getItem('mockDeliveryNotes');
+        if (storedDeliveryNotes) {
+            const parsedNotes = JSON.parse(storedDeliveryNotes);
+            // Calculate packed quantities for display
+            const updatedNotes = parsedNotes.map(note => calculatePackedQuantity(note));
+            setDeliveryNotes(updatedNotes);
+        } else {
+            // Initialize localStorage with mock data if it doesn't exist
+            localStorage.setItem('mockDeliveryNotes', JSON.stringify(mockDeliveryNotes));
+            const updatedNotes = mockDeliveryNotes.map(note => calculatePackedQuantity(note));
+            setDeliveryNotes(updatedNotes);
         }
-        fetchDeliveryNotes();
     }, []);
 
-    // Handle sales order selection
+    // Handle delivery note selection
     function handleDeliveryNoteChange(event) {
         const selectedNote = event.target.value;
         if (selectedNote) {
             router.push(`/packaging/${selectedNote}`);
         }
+    }
+
+    // Reset mock data to initial state
+    function resetMockData() {
+        localStorage.setItem('mockDeliveryNotes', JSON.stringify(mockDeliveryNotes));
+        const updatedNotes = mockDeliveryNotes.map(note => calculatePackedQuantity(note));
+        setDeliveryNotes(updatedNotes);
     }
 
     // Show error state
@@ -80,6 +103,13 @@ export default function PackagingPage() {
                         </option>
                     ))}
                 </select>
+
+                <button
+                    onClick={resetMockData}
+                    className="mt-4 px-4 py-2 bg-red-500 text-white font-medium rounded-lg hover:bg-red-600 transition-colors text-sm"
+                >
+                    Reset Mock Data
+                </button>
             </div>
         </div>
     );

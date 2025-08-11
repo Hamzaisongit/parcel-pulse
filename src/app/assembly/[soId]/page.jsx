@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useContext } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getselectedVideoDevices, getVideoDevices, reader, startScanning, stopScanning } from '../../../services/barcodeReader';
 import { GlobalContext } from '../../../Context/globalContext';
@@ -8,6 +8,7 @@ import useBarcode from '../../../Stores/barcodeStore';
 import IntermidScanningController from '../../../Components/IntermidScanningController';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { mockPickLists } from '../mockData';
 
 export default function SalesOrderDetailPage() {
     // State variables
@@ -54,17 +55,38 @@ export default function SalesOrderDetailPage() {
     async function fetchPickList() {
         try {
             setLoadingController({ show: true, text: 'Loading Pick List..' })
-            const response = await fetch(`/api/pick-lists/${salesOrderId}`, {
-                credentials: 'include',
-                headers: {
-                    'Accept': 'application/json',
-                },
-            });
-            if (!response.ok) {
-                throw new Error('Failed to fetch pick list');
+            
+            // Commented out API fetching for demo
+            // const response = await fetch(`/api/pick-lists/${salesOrderId}`, {
+            //     credentials: 'include',
+            //     headers: {
+            //         'Accept': 'application/json',
+            //     },
+            // });
+            // if (!response.ok) {
+            //     throw new Error('Failed to fetch pick list');
+            // }
+            // const data = await response.json();
+            // setPickList(data.data);
+            
+            // Using mock data with localStorage for persistence
+            const storedPickLists = localStorage.getItem('mockPickLists');
+            let pickListsData;
+            
+            if (storedPickLists) {
+                pickListsData = JSON.parse(storedPickLists);
+            } else {
+                // Initialize localStorage if it doesn't exist
+                localStorage.setItem('mockPickLists', JSON.stringify(mockPickLists));
+                pickListsData = mockPickLists;
             }
-            const data = await response.json();
-            setPickList(data.data);
+            
+            const mockPickList = pickListsData.find(list => list.name === salesOrderId);
+            if (mockPickList) {
+                setPickList(mockPickList);
+            } else {
+                setError('Pick list not found');
+            }
         } catch (err) {
             setError('Failed to fetch pick list. Please try again.');
             console.error('Error:', err);
@@ -87,8 +109,10 @@ export default function SalesOrderDetailPage() {
 
         try {
             setLoadingController({ show: true, text: 'Loading' })
+            
+            // Changed from item_code to barcode
             const matchingLocations = pickList.locations.filter(location =>
-                location.item_code == String(barcodeValue).slice(0, 12)
+                location.barcode == String(barcodeValue).slice(0, 12)
             );
 
             if (matchingLocations.length === 0) {
@@ -122,21 +146,22 @@ export default function SalesOrderDetailPage() {
                     return l;
                 })
 
-                const updateResponse = await fetch(`/api/pick-lists/${pickList.name}`, {
-                    method: 'PUT',
-                    credentials: 'include',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        locations: updatedLocations
-                    })
-                });
+                // Commented out API update for demo
+                // const updateResponse = await fetch(`/api/pick-lists/${pickList.name}`, {
+                //     method: 'PUT',
+                //     credentials: 'include',
+                //     headers: {
+                //         'Accept': 'application/json',
+                //         'Content-Type': 'application/json',
+                //     },
+                //     body: JSON.stringify({
+                //         locations: updatedLocations
+                //     })
+                // });
 
-                if (!updateResponse.ok) {
-                    throw new Error('Failed to update picked quantity');
-                }
+                // if (!updateResponse.ok) {
+                //     throw new Error('Failed to update picked quantity');
+                // }
 
                 setPickList(p => {
                     const newLocations = p.locations.map(location => {
@@ -150,6 +175,28 @@ export default function SalesOrderDetailPage() {
                     });
                     return { ...p, locations: newLocations };
                 })
+                
+                // Update localStorage to persist the changes
+                const storedPickLists = JSON.parse(localStorage.getItem('mockPickLists') || '[]');
+                const updatedPickLists = storedPickLists.map(list => {
+                    if (list.name === pickList.name) {
+                        return {
+                            ...list,
+                            locations: list.locations.map(location => {
+                                if (location.name === locationToPick.name) {
+                                    return {
+                                        ...location,
+                                        picked_qty: newPickedQty
+                                    };
+                                }
+                                return location;
+                            })
+                        };
+                    }
+                    return list;
+                });
+                localStorage.setItem('mockPickLists', JSON.stringify(updatedPickLists));
+                
                 setScanningController({ show: true, text: `Successfully picked ${locationToPick.item_code}`, status: 'success' })
             }
 
@@ -217,7 +264,7 @@ export default function SalesOrderDetailPage() {
         <div className="max-w-6xl mx-auto px-4 py-8">
            <Link href="/assembly"><ArrowLeft size={30} className='mb-2 rounded-md active:bg-gray-300'></ArrowLeft></Link> 
             <h1 className="text-2xl font-bold mb-2">Pick List Locations - {pickList.name}</h1>
-            <p className="text-gray-600 mb-6">Customer: {pickList.customer}</p>
+            <p className="text-gray-600 mb-6">Customer: {pickList.customer || 'Demo Customer'}</p>
             <div className="header flex flex-col gap-5 mb-5">
 
                 {/* Camera Screen */}
@@ -309,6 +356,7 @@ export default function SalesOrderDetailPage() {
                     <thead>
                         <tr className="bg-gray-50">
                             <th className="px-4 py-3 text-left border-b">SKU ID</th>
+                            <th className="px-4 py-3 text-left border-b">Barcode</th>
                             <th className="px-4 py-3 text-left border-b">Picked Quantity</th>
                             <th className="px-4 py-3 text-left border-b">Required Quantity</th>
                         </tr>
@@ -317,6 +365,7 @@ export default function SalesOrderDetailPage() {
                         {pickList?.locations?.map(location => (
                             <tr key={location.name} className={`${location.qty == location.picked_qty ? 'bg-green-300' : ''}`}>
                                 <td className="px-4 py-3 border-b">{location.item_code || '-'}</td>
+                                <td className="px-4 py-3 border-b">{location.barcode || '-'}</td>
                                 <td className="px-4 py-3 border-b">{location.picked_qty || 0}</td>
                                 <td className="px-4 py-3 border-b">{location.qty}</td>
                             </tr>

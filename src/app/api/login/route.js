@@ -1,5 +1,3 @@
-import { NextResponse } from 'next/server';
-
 export async function POST(request) {
     const body = await request.json();
     
@@ -11,7 +9,6 @@ export async function POST(request) {
         body: JSON.stringify(body)
     });
 
-    console.log(erpResponse)
     const data = await erpResponse.json();
     // Get the cookie from ERPNext response
     const cookieSplitArray = erpResponse.headers.get('set-cookie').split(',');
@@ -31,9 +28,6 @@ export async function POST(request) {
             process.env.NODE_ENV=='development' ? (cookieSplitArray[0] + ',' + cookieSplitArray[1]).replace('Secure;','') : (cookieSplitArray[0] + ',' + cookieSplitArray[1])
         );
     }
-
-    console.log('actualCookie : ', cookieSplitArray[0] + ',' + cookieSplitArray[1])
-    console.log('custom response', response)
     
     return response;
 }

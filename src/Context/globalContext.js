@@ -3,7 +3,7 @@
 import { createContext, useState } from "react";
 import { useRef } from "react";
 
-export const GlobalContext = createContext()
+export const GlobalContext = createContext();
 
 export const GlobalContextProvider = ({children})=>{
     const [loadingController, setLoadingController] = useState({

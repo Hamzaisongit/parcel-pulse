@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { GlobalContext } from '../../Context/globalContext';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import { mockPickLists } from './mockData';
 
 export default function AssemblyPage() {
     // State variables
@@ -17,29 +18,40 @@ export default function AssemblyPage() {
 
     // Fetch pick lists when component mounts
     useEffect(() => {
-        async function fetchPickLists() {
-            try {
-                setLoadingController({ show: true, text: 'Loading Pick Lists..' })
-                const response = await fetch('/api/pick-lists', {
-                    credentials: 'include',
-                    headers: {
-                        'Accept': 'application/json',
-                    },
-                });
-                if (!response.ok) {
-                    throw new Error('Failed to fetch pick lists');
-                }
-                const data = await response.json();
-                setPickLists(data.data);
-                setLoadingController({ show: false, text: 'Loading Pick Lists..' })
-            } catch (err) {
-                setError('Failed to fetch pick lists. Please try again.');
-                setLoadingController({ show: false, text: 'Loading Pick Lists..' })
-                console.error('Error:', err);
-            }
-        }
+        // Commented out API fetching for demo
+        // async function fetchPickLists() {
+        //     try {
+        //         setLoadingController({ show: true, text: 'Loading Pick Lists..' })
+        //         const response = await fetch('/api/pick-lists', {
+        //             credentials: 'include',
+        //             headers: {
+        //                 'Accept': 'application/json',
+        //             },
+        //         });
+        //         if (!response.ok) {
+        //             throw new Error('Failed to fetch pick lists');
+        //         }
+        //         const data = await response.json();
+        //         setPickLists(data.data);
+        //         setLoadingController({ show: false, text: 'Loading Pick Lists..' })
+        //     } catch (err) {
+        //         setError('Failed to fetch pick lists. Please try again.');
+        //         setLoadingController({ show: false, text: 'Loading Pick Lists..' })
+        //         console.error('Error:', err);
+        //     }
+        // }
 
-        fetchPickLists();
+        // fetchPickLists();
+        
+        // Using mock data with localStorage for persistence
+        const storedPickLists = localStorage.getItem('mockPickLists');
+        if (storedPickLists) {
+            setPickLists(JSON.parse(storedPickLists));
+        } else {
+            // Initialize localStorage with mock data if it doesn't exist
+            localStorage.setItem('mockPickLists', JSON.stringify(mockPickLists));
+            setPickLists(mockPickLists);
+        }
     }, []);
 
     // Handle pick list selection
@@ -49,6 +61,12 @@ export default function AssemblyPage() {
             // Navigate to the selected pick list page
             router.push(`/assembly/${selectedPickList}`);
         }
+    }
+
+    // Reset mock data to initial state
+    function resetMockData() {
+        localStorage.setItem('mockPickLists', JSON.stringify(mockPickLists));
+        setPickLists(mockPickLists);
     }
 
     // Show error state
@@ -82,6 +100,13 @@ export default function AssemblyPage() {
                         </option>
                     ))}
                 </select>
+
+                <button
+                    onClick={resetMockData}
+                    className="mt-4 px-4 py-2 bg-red-500 text-white font-medium rounded-lg hover:bg-red-600 transition-colors text-sm"
+                >
+                    Reset Mock Data
+                </button>
 
             </div>
         </div>
