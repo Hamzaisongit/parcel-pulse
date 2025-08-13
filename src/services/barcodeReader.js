@@ -3,10 +3,10 @@ import useBarcode from "../Stores/barcodeStore"; // Import the Zustand store hoo
 
 import { DecodeHintType } from "@zxing/library";
 
-const hints = new Map();
-hints.set(DecodeHintType.TRY_HARDER, true);
+// const hints = new Map();
+// hints.set(DecodeHintType.TRY_HARDER, true);
 
-const reader = new BrowserMultiFormatReader(hints);
+const reader = new BrowserMultiFormatReader();
 let readerInstance = null;
 
 let videoElement = null;
