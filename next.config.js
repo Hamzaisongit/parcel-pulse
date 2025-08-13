@@ -1,6 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    // Removed rewrites to fix 403 error - API routes now call external ERP directly
+    webpack: (config, { isServer }) => {
+        // Enable WebAssembly
+        config.experiments = {
+          asyncWebAssembly: true, // Recommended
+          layers: true // Sometimes needed if using layers in wasm modules
+        };
+    
+        return config;
+      },
 }
 
 module.exports = nextConfig

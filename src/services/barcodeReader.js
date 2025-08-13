@@ -1,7 +1,12 @@
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import useBarcode from "../Stores/barcodeStore"; // Import the Zustand store hook
 
-const reader = new BrowserMultiFormatReader();
+import { DecodeHintType } from "@zxing/library";
+
+const hints = new Map();
+hints.set(DecodeHintType.TRY_HARDER, true);
+
+const reader = new BrowserMultiFormatReader(hints);
 let readerInstance = null;
 
 let videoElement = null;
